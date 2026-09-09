@@ -1,0 +1,8 @@
+{
+  "name": "Coming Back Aniversario - Live Tab",
+  "description": "Sistema de tabulación en tiempo real y escape room para el torneo de debate y diplomacia Coming Back Aniversario con soporte offline y reveal de break.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

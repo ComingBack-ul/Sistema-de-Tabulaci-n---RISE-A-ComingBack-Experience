@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --crimson: #991B1B;
+    --burgundy: #7F1D1D;
+    --bright-red: #DC2626;
+    --slate-50: #F8FAFC;
+    --slate-100: #F1F5F9;
+    --slate-900: #0F172A;
+    --white: #FFFFFF;
+  }
+
+  body {
+    background-color: var(--slate-50);
+    color: var(--slate-900);
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+}
+
+/* Professional Polish Custom Utilities */
+.btn-primary-polish {
+  background-color: #991b1b;
+  color: #ffffff;
+  font-weight: 700;
+  border-radius: 0.5rem;
+  transition: all 0.15s ease-in-out;
+}
+.btn-primary-polish:hover {
+  background-color: #7f1d1d;
+  box-shadow: 0 4px 12px rgba(153, 27, 27, 0.25);
+}
+
+.btn-outline-polish {
+  border: 1.5px solid #991b1b;
+  color: #991b1b;
+  background-color: transparent;
+  font-weight: 700;
+  border-radius: 0.5rem;
+  transition: all 0.15s ease-in-out;
+}
+.btn-outline-polish:hover {
+  background-color: #fef2f2;
+}
+
+.badge-break-polish {
+  background-color: #991b1b;
+  color: #ffffff;
+  border: 1.5px solid #fcd34d;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.table-row-polish:hover {
+  background-color: #fff5f5;
+}

@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { LogOut, AlertCircle, Compass, FileText, Globe, Key, MapPin, Search } from 'lucide-react';
 import { Team } from '../types';
-import { getCurrentRotation, getSafeParticipantAssignment } from '../services/participantContentService';
+import { getCurrentRotation, getSafeParticipantAssignment, syncParticipantState } from '../services/participantContentService';
 
 interface Props {
   teamId: number;
@@ -11,11 +11,32 @@ interface Props {
 
 export const ParticipantDashboard: React.FC<Props> = ({ teamId, teams, onLogout }) => {
   const team = useMemo(() => teams.find(t => t.id === teamId), [teams, teamId]);
-  const currentRotation = getCurrentRotation();
+  const [currentRotation, setCurrentRotation] = useState(getCurrentRotation());
+  const [lastSync, setLastSync] = useState(Date.now());
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchState = async () => {
+      await syncParticipantState();
+      if (isMounted) {
+        setCurrentRotation(getCurrentRotation());
+        setLastSync(Date.now());
+      }
+    };
+    
+    fetchState();
+    // Poll the shared truth source every 5 seconds
+    const interval = setInterval(fetchState, 5000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
   const assignment = useMemo(() => {
     if (!team || team.status === 'inactive') return null;
     return getSafeParticipantAssignment(team, currentRotation);
-  }, [team, currentRotation]);
+  }, [team, currentRotation, lastSync]);
 
   if (!team) {
     return (

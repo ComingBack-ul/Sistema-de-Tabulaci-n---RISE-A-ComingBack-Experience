@@ -13,11 +13,74 @@ export type StationKey =
 export type StationType = 'oratoria' | 'debate' | 'crisis';
 
 export type UserRole = 'judge' | 'admin';
+export type UserStatus = 'active' | 'inactive';
+export type TeamStatus = 'active' | 'inactive';
+
+export interface StationDefinition {
+  key: StationKey;
+  label: string;
+  name: string;
+  type: StationType;
+  maxPoints: number;
+  challengeName: string;
+  challengeDescription: string;
+}
+
+export interface ManagedUser {
+  username: string;
+  name: string;
+  role: UserRole;
+  passwordHash: string;
+  status: UserStatus;
+  stationKey?: StationKey;
+  stationName?: string;
+  stationType?: StationType;
+  maxPoints?: number;
+  challengeName?: string;
+  challengeDescription?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateUserDto {
+  username: string;
+  name: string;
+  role: UserRole;
+  password: string;
+  status?: UserStatus;
+  stationKey?: StationKey;
+}
+
+export interface UpdateUserDto {
+  name?: string;
+  role?: UserRole;
+  status?: UserStatus;
+  stationKey?: StationKey;
+}
+
+export interface CreateTeamDto {
+  id: number;
+  name: string;
+  wave: Wave;
+  members: string[];
+  status?: TeamStatus;
+}
+
+export interface UpdateTeamDto {
+  id?: number;
+  name?: string;
+  wave?: Wave;
+  members?: string[];
+  status?: TeamStatus;
+}
+
+export type AdminTab = 'live' | 'teams' | 'users' | 'settings';
 
 export interface AuthUser {
   username: string;
   role: UserRole;
   name: string;
+  status?: UserStatus;
   stationKey?: StationKey;
   stationName?: string;
   stationType?: StationType;
@@ -75,6 +138,7 @@ export interface Team {
   name: string;
   wave: Wave;
   members: string[];
+  status?: TeamStatus;
   scores: TeamScores;
   // Individual judge evaluations by username
   judgeEvaluations: {

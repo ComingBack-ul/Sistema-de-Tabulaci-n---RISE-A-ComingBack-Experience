@@ -39,6 +39,8 @@ import { AdminSettings } from './components/admin/AdminSettings';
 import { AuditoriumProjection } from './components/AuditoriumProjection';
 import { DataManagementModal } from './components/DataManagementModal';
 import { TeamDetailModal } from './components/TeamDetailModal';
+import { ParticipantLogin } from './components/ParticipantLogin';
+import { ParticipantDashboard } from './components/ParticipantDashboard';
 import { Activity, Users, UserCheck, Settings, ShieldCheck, FileSpreadsheet } from 'lucide-react';
 
 export default function App() {
@@ -57,6 +59,8 @@ export default function App() {
   const [isDataModalOpen, setIsDataModalOpen] = useState<boolean>(false);
   const [selectedTeamDetail, setSelectedTeamDetail] = useState<Team | null>(null);
   const [appError, setAppError] = useState<string | null>(null);
+  const [isParticipantMode, setIsParticipantMode] = useState<boolean>(false);
+  const [participantTeamId, setParticipantTeamId] = useState<number | null>(null);
 
   // Sync state with storage and other tabs
   useEffect(() => {
@@ -410,9 +414,31 @@ export default function App() {
     ).length;
   }, [teams]);
 
+  // Participant Mode Rendering
+  if (isParticipantMode) {
+    if (participantTeamId === null) {
+      return (
+        <ParticipantLogin 
+          onLogin={setParticipantTeamId} 
+          onBack={() => setIsParticipantMode(false)} 
+        />
+      );
+    }
+    return (
+      <ParticipantDashboard 
+        teamId={participantTeamId} 
+        teams={teams} 
+        onLogout={() => {
+          setParticipantTeamId(null);
+          setIsParticipantMode(false);
+        }} 
+      />
+    );
+  }
+
   // If not logged in, render Login Screen
   if (!currentUser) {
-    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+    return <LoginScreen onLoginSuccess={handleLoginSuccess} onParticipantLogin={() => setIsParticipantMode(true)} />;
   }
 
   return (

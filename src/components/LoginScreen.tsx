@@ -11,9 +11,10 @@ import {
 
 interface LoginScreenProps {
   onLoginSuccess: (user: AuthUser) => void;
+  onParticipantLogin?: () => void;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onParticipantLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -173,6 +174,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
+
+          {onParticipantLogin && (
+            <div className="px-6 sm:px-8 pb-8">
+              <div className="relative flex items-center py-2 mb-4">
+                <div className="flex-grow border-t border-red-500/30"></div>
+                <span className="flex-shrink-0 mx-4 text-red-200/50 text-xs font-bold uppercase tracking-widest">o</span>
+                <div className="flex-grow border-t border-red-500/30"></div>
+              </div>
+              <button
+                type="button"
+                onClick={onParticipantLogin}
+                className="w-full bg-white/5 hover:bg-white/10 active:bg-white/15 text-red-100 font-bold py-3.5 px-4 rounded-xl border border-red-400/30 transition-all flex items-center justify-center gap-2 cursor-pointer text-sm tracking-wide"
+              >
+                <span>INGRESAR COMO PARTICIPANTE</span>
+              </button>
+            </div>
+          )}
         </motion.div>
       </main>
 

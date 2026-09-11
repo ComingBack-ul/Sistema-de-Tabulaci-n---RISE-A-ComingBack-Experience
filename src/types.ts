@@ -178,3 +178,57 @@ export interface AuditLogEntry {
 export type RoomId = 'sala_a' | 'sala_b_e' | 'sala_f';
 
 export type ViewMode = 'admin' | 'judge' | 'projection';
+
+// =========================================================================
+// PARTICIPANT CONTENT & ASSIGNMENT MODELS (PROMPT 2.0)
+// =========================================================================
+
+export type RotationId = 'rotation_1' | 'rotation_2' | 'rotation_3' | 'rotation_4' | 'rotation_5' | 'rotation_6';
+
+export type OratoryOrganization = 'Unión Europea' | 'Estados Unidos' | 'República Popular China' | 'AOSIS';
+
+export interface OratoryAssignment {
+  organization: OratoryOrganization;
+  position: string;
+  requiredSpeechFragment: string;
+  diplomaticFragment: string;
+  clues: string[];
+  keyword: string; // HIDDEN FROM PARTICIPANT UI
+  participantInstructions: string;
+}
+
+export interface DebateAssignment {
+  motion: string;
+  participantSide: 'Proposición' | 'Oposición';
+  instructions: string;
+  preparationNotes?: string;
+}
+
+export interface CrisisAssignment {
+  crisisTitle: string;
+  scenario: string;
+  diplomaticObjective: string;
+  instructions: string;
+  relevantContext: string;
+  requiredOutcome?: string;
+}
+
+export interface KeywordChallenge {
+  challengeText: string;
+  keyword: string;
+}
+
+export interface ParticipantContent {
+  rotationId: RotationId;
+  room: RoomId;
+  title: string;
+  oratory?: OratoryAssignment;
+  debate?: DebateAssignment;
+  crisis?: CrisisAssignment;
+  keywordChallenge?: KeywordChallenge;
+}
+
+export interface RotationAssignment {
+  rotationId: RotationId;
+  teamAssignments: Record<number, ParticipantContent>;
+}

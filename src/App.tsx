@@ -283,7 +283,7 @@ export default function App() {
 
       // Check for inactive status before saving administrative scores
       if (targetTeam.status === 'inactive') {
-        setAppError(`El Equipo #${teamId} está inactivo y no puede recibir nuevas evaluaciones.`);
+        setAppError(`El Equipo #${teamId} está inactivo y no puede recibir nuevas puntuaciones.`);
         return;
       }
       const targetJudgeUsername: ValidJudgeUsername =

@@ -46,6 +46,11 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({
               }`}>
                 {isMorning ? 'Oleada Mañana (1-25)' : 'Oleada Tarde (26-50)'}
               </span>
+              {team.currentStationKey && (
+                <span className="text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded font-black uppercase shadow-xs">
+                  📍 Destino: {team.currentStationKey.toUpperCase()}
+                </span>
+              )}
               {team.isBreakQualified && (
                 <span className="text-[10px] bg-yellow-400 text-red-950 px-2 py-0.5 rounded font-black uppercase shadow-xs">
                   ⭐ BREAK CLASIFICADO

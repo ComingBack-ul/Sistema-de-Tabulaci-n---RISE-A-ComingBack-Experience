@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Users, ShieldAlert, CheckCircle2, AlertCircle } from 'lucide-react';
-import { Team, CreateTeamDto, UpdateTeamDto, Wave, TeamStatus } from '../../types';
+import { Team, CreateTeamDto, UpdateTeamDto, Wave, TeamStatus, StationKey } from '../../types';
 import { hasTeamEvaluationHistory } from '../../services/teamService';
+import { STATION_DEFINITIONS } from '../../utils/stationConstants';
 
 interface TeamFormModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export const TeamFormModal: React.FC<TeamFormModalProps> = ({
   const [name, setName] = useState<string>('');
   const [wave, setWave] = useState<Wave>('morning');
   const [status, setStatus] = useState<TeamStatus>('active');
+  const [currentStationKey, setCurrentStationKey] = useState<StationKey | null>(null);
   const [members, setMembers] = useState<string[]>(['']);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -35,6 +37,7 @@ export const TeamFormModal: React.FC<TeamFormModalProps> = ({
       setName(teamToEdit.name);
       setWave(teamToEdit.wave);
       setStatus(teamToEdit.status || 'active');
+      setCurrentStationKey(teamToEdit.currentStationKey || null);
       setMembers(
         Array.isArray(teamToEdit.members) && teamToEdit.members.length > 0
           ? [...teamToEdit.members]
@@ -51,6 +54,7 @@ export const TeamFormModal: React.FC<TeamFormModalProps> = ({
       setName('');
       setWave('morning');
       setStatus('active');
+      setCurrentStationKey(null);
       setMembers(['Delegado 1', 'Delegado 2', 'Delegado 3']);
     }
     setFormError(null);
@@ -115,6 +119,7 @@ export const TeamFormModal: React.FC<TeamFormModalProps> = ({
           name: name.trim(),
           wave,
           status,
+          currentStationKey: currentStationKey || null,
           members: cleanMembers,
         },
       });
@@ -129,6 +134,7 @@ export const TeamFormModal: React.FC<TeamFormModalProps> = ({
         name: name.trim(),
         wave,
         status,
+        currentStationKey: currentStationKey || null,
         members: cleanMembers,
       });
 
@@ -259,6 +265,28 @@ export const TeamFormModal: React.FC<TeamFormModalProps> = ({
                 <option value="inactive">Inactivo</option>
               </select>
             </div>
+          </div>
+
+          {/* Destination Station */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+              Estación / Destino Actual (Opcional)
+            </label>
+            <select
+              value={currentStationKey || ''}
+              onChange={(e) => setCurrentStationKey((e.target.value as StationKey) || null)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-red-600 focus:border-red-600"
+            >
+              <option value="">Sin sala asignada (En tránsito / Espera)</option>
+              {Object.values(STATION_DEFINITIONS).map((st) => (
+                <option key={st.key} value={st.key}>
+                  {st.label} — {st.name} ({st.type.toUpperCase()})
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-slate-500 mt-1">
+              Asignación explícita de ubicación para control del flujo de delegaciones en el torneo.
+            </p>
           </div>
 
           {/* Members List */}

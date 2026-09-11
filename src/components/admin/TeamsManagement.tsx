@@ -369,8 +369,16 @@ export const TeamsManagement: React.FC<TeamsManagementProps> = ({
 
                       {/* Name & Members */}
                       <td className="py-3 px-4">
-                        <div className="font-semibold text-slate-900 flex items-center gap-2">
+                        <div className="font-semibold text-slate-900 flex items-center gap-2 flex-wrap">
                           <span>{team.name}</span>
+                          {team.currentStationKey && (
+                            <span
+                              className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-slate-800 text-white tracking-wide"
+                              title={`Destino actual: ${team.currentStationKey.toUpperCase()}`}
+                            >
+                              📍 {team.currentStationKey.toUpperCase()}
+                            </span>
+                          )}
                           {team.isBreakQualified && (
                             <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300">
                               BREAK

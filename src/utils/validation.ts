@@ -457,11 +457,25 @@ export function validateTeam(team: unknown): { valid: boolean; error?: string; d
     }
   }
 
+  // Validate current destination station if provided
+  let currentStationKey: StationKey | null = null;
+  if (t.currentStationKey !== undefined && t.currentStationKey !== null) {
+    if (isValidStationKey(t.currentStationKey)) {
+      currentStationKey = t.currentStationKey;
+    } else {
+      return {
+        valid: false,
+        error: `Estación actual asignada inválida para el equipo #${t.id}: '${t.currentStationKey}'.`,
+      };
+    }
+  }
+
   const cleanTeam: Team = {
     id: t.id,
     name: t.name.trim().slice(0, 100),
     wave: t.wave,
     status: (t.status === 'inactive' ? 'inactive' : 'active') as TeamStatus,
+    currentStationKey,
     members: Array.isArray(t.members) 
       ? t.members.map((m) => (typeof m === 'string' ? m.trim().slice(0, 100) : '')).filter(Boolean)
       : [],

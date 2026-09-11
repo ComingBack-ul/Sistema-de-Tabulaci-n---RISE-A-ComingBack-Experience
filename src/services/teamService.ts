@@ -1,6 +1,6 @@
-import { Team, AuthUser, CreateTeamDto, UpdateTeamDto, TeamStatus } from '../types';
+import { Team, AuthUser, CreateTeamDto, UpdateTeamDto, TeamStatus, StationKey } from '../types';
 import { computeRanksAndBreak, saveTeamsToStorage, appendAuditLog } from '../utils/storage';
-import { validateTeam } from '../utils/validation';
+import { validateTeam, isValidStationKey } from '../utils/validation';
 
 /**
  * Evaluates whether a team has historical evaluations, scores, or lock achievements.
@@ -75,6 +75,12 @@ export function validateCreateTeamPayload(
     return { valid: false, error: 'Debe seleccionar una oleada válida ("morning" o "afternoon").' };
   }
 
+  if (dto.currentStationKey !== undefined && dto.currentStationKey !== null) {
+    if (!isValidStationKey(dto.currentStationKey)) {
+      return { valid: false, error: `La estación '${dto.currentStationKey}' no es una estación válida.` };
+    }
+  }
+
   return { valid: true };
 }
 
@@ -105,6 +111,7 @@ export function createTeam(
     wave: dto.wave,
     members: cleanMembers.length > 0 ? cleanMembers : [`Delegado 1 - Equipo ${dto.id}`],
     status: dto.status || 'active',
+    currentStationKey: dto.currentStationKey ?? null,
     scores: {
       salaA: { oratoriaPoints: 0, keywordSolved: false, isSubmitted: false },
       salaBE: { debatePoints: 0, codeDelivered: false, isSubmitted: false },
@@ -197,6 +204,7 @@ export function updateTeam(
     name: dto.name !== undefined ? dto.name.trim() : existingTeam.name,
     wave: dto.wave !== undefined ? dto.wave : existingTeam.wave,
     status: dto.status !== undefined ? dto.status : (existingTeam.status || 'active'),
+    currentStationKey: dto.currentStationKey !== undefined ? dto.currentStationKey : (existingTeam.currentStationKey ?? null),
     members: cleanMembers.length > 0 ? cleanMembers : existingTeam.members,
     lastUpdated: new Date().toISOString(),
   };

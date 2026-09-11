@@ -56,6 +56,8 @@ export function getInitialTeams(): Team[] {
       name: `Equipo ${i}`,
       wave,
       members: [], // Sin integrantes ficticios, listos para ingresar lista definitiva
+      status: 'active',
+      currentStationKey: null,
       scores: {
         salaA: { oratoriaPoints: 0, keywordSolved: false, isSubmitted: false },
         salaBE: { debatePoints: 0, codeDelivered: false, isSubmitted: false },

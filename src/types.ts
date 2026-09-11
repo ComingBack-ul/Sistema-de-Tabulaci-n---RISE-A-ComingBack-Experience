@@ -64,6 +64,7 @@ export interface CreateTeamDto {
   wave: Wave;
   members: string[];
   status?: TeamStatus;
+  currentStationKey?: StationKey | null;
 }
 
 export interface UpdateTeamDto {
@@ -72,6 +73,7 @@ export interface UpdateTeamDto {
   wave?: Wave;
   members?: string[];
   status?: TeamStatus;
+  currentStationKey?: StationKey | null;
 }
 
 export type AdminTab = 'live' | 'teams' | 'users' | 'settings';
@@ -139,6 +141,7 @@ export interface Team {
   wave: Wave;
   members: string[];
   status?: TeamStatus;
+  currentStationKey?: StationKey | null;
   scores: TeamScores;
   // Individual judge evaluations by username
   judgeEvaluations: {

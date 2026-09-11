@@ -190,92 +190,50 @@ export function loadUsers(): ManagedUser[] {
       return [...INITIAL_PRESET_USERS];
     }
 
+    const storedUsers = parsed as Partial<ManagedUser>[];
+    const mergedUsers: ManagedUser[] = [];
     let hasChanges = false;
-    const userMap = new Map<string, ManagedUser>();
 
-    // 1. Process and normalize existing stored users
-    for (const item of parsed) {
-      if (!item || typeof item !== 'object') {
-        hasChanges = true;
-        continue;
-      }
+    // First, map existing users and normalize status legacy
+    const existingUsernames = new Set<string>();
 
-      const rawUsername = (item as Partial<ManagedUser>).username;
-      if (!rawUsername || typeof rawUsername !== 'string') {
-        hasChanges = true;
-        continue;
-      }
-
-      const cleanUsername = normalizeUsername(rawUsername);
-      if (!cleanUsername) {
-        hasChanges = true;
-        continue;
-      }
-
-      // If already encountered this username in the stored list (duplicate), skip duplicate
-      if (userMap.has(cleanUsername)) {
-        hasChanges = true;
-        continue;
-      }
-
-      const existingItem = item as Partial<ManagedUser>;
-      const role: 'judge' | 'admin' = existingItem.role === 'admin' ? 'admin' : 'judge';
+    for (const item of storedUsers) {
+      if (!item || !item.username) continue;
       
-      // CRITICAL RULE: Preserve 'inactive' status without reactivation.
-      // If a user was set to inactive by an admin, they MUST stay inactive.
-      const status: UserStatus = existingItem.status === 'inactive' ? 'inactive' : 'active';
+      const normUsername = normalizeUsername(item.username);
+      if (existingUsernames.has(normUsername)) {
+        // Avoid duplicates in stored users by skipping
+        hasChanges = true;
+        continue;
+      }
       
-      const stationKey = role === 'judge' && existingItem.stationKey ? existingItem.stationKey : undefined;
-      const stationDef = stationKey ? getStationDefinition(stationKey) : undefined;
+      existingUsernames.add(normUsername);
 
-      const normalizedUser: ManagedUser = {
-        username: cleanUsername,
-        name: typeof existingItem.name === 'string' && existingItem.name.trim() 
-          ? existingItem.name.trim() 
-          : cleanUsername,
-        role,
-        // CRITICAL RULE: Preserve changed passwords, never overwrite with default preset
-        passwordHash: typeof existingItem.passwordHash === 'string' && existingItem.passwordHash.trim()
-          ? existingItem.passwordHash.trim()
-          : '12345678',
-        status,
-        stationKey,
-        stationName: existingItem.stationName || stationDef?.name,
-        stationType: existingItem.stationType || stationDef?.type,
-        maxPoints: existingItem.maxPoints || stationDef?.maxPoints,
-        challengeName: existingItem.challengeName || stationDef?.challengeName,
-        challengeDescription: existingItem.challengeDescription || stationDef?.challengeDescription,
-        createdAt: existingItem.createdAt || new Date().toISOString(),
-        updatedAt: existingItem.updatedAt || existingItem.createdAt,
-      };
-
-      if (rawUsername !== cleanUsername) {
+      // Normalize status legacy, but DO NOT CHANGE any other property
+      const legacyStatus = item.status === 'inactive' ? 'inactive' : 'active';
+      if (item.status !== legacyStatus) {
+        item.status = legacyStatus;
         hasChanges = true;
       }
 
-      userMap.set(cleanUsername, normalizedUser);
+      mergedUsers.push(item as ManagedUser);
     }
 
-    // 2. Check each official user in INITIAL_PRESET_USERS
-    // If missing from storage -> add it.
-    // If it exists in storage -> KEEP current managed configuration (password, inactive status, name, etc.).
+    // Add missing presets
     for (const preset of INITIAL_PRESET_USERS) {
-      const presetKey = normalizeUsername(preset.username);
-      
-      if (!userMap.has(presetKey)) {
-        userMap.set(presetKey, { ...preset });
+      const presetNorm = normalizeUsername(preset.username);
+      if (!existingUsernames.has(presetNorm)) {
+        mergedUsers.push({ ...preset });
+        existingUsernames.add(presetNorm);
         hasChanges = true;
       }
     }
 
-    const finalUsers = Array.from(userMap.values());
-
-    // Persist if any preset was appended or corrupted/duplicated items cleaned up
-    if (hasChanges || finalUsers.length !== parsed.length) {
-      saveUsers(finalUsers);
+    if (hasChanges) {
+      saveUsers(mergedUsers);
     }
 
-    return finalUsers;
+    return mergedUsers;
   } catch (e) {
     console.error('Error loading users from storage:', e);
     return [...INITIAL_PRESET_USERS];

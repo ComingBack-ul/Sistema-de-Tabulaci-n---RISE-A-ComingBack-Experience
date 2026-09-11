@@ -10,13 +10,19 @@ interface Props {
 export const ParticipantLogin: React.FC<Props> = ({ onLogin, onBack }) => {
   const [teamNumber, setTeamNumber] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const id = parseInt(teamNumber);
-    if (!isNaN(id) && id >= 1 && id <= 50) {
-      onLogin(id);
+    if (!isNaN(id) && id >= 1 && id <= 18) {
+      const { authenticateParticipant } = await import('../utils/auth');
+      const res = await authenticateParticipant(id);
+      if (res.success) {
+        onLogin(id);
+      } else {
+        alert(res.error || 'No autorizado');
+      }
     } else {
-      alert('Número de equipo inválido. Ingrese un valor entre 1 y 50.');
+      alert('Número de equipo inválido. Ingrese un valor entre 1 y 18.');
     }
   };
 
@@ -50,7 +56,7 @@ export const ParticipantLogin: React.FC<Props> = ({ onLogin, onBack }) => {
             <input
               type="number"
               min="1"
-              max="50"
+              max="18"
               value={teamNumber}
               onChange={(e) => setTeamNumber(e.target.value)}
               className="w-full text-center text-4xl font-black bg-slate-50 border-2 border-slate-200 rounded-2xl py-4 focus:border-[#991B1B] focus:ring-4 focus:ring-red-100 transition-all outline-none"

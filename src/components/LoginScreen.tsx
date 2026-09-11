@@ -37,11 +37,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onPart
     return () => clearTimeout(timer);
   }, [shouldReduceMotion]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!username.trim() || !password.trim()) {
+      setErrorMsg('Por favor, complete ambos campos');
+      return;
+    }
     setErrorMsg(null);
-
-    const res = authenticate(username, password);
+    const res = await authenticate(username, password);
     if (res.success && res.user) {
       onLoginSuccess(res.user);
     } else {

@@ -1,4 +1,6 @@
-import { AuthUser, StationKey, Team, UserStatus } from '../types';
+import fs from 'fs';
+
+const code = `import { AuthUser, StationKey, Team, UserStatus } from '../types';
 import { api } from '../services/apiClient';
 
 export async function authenticate(
@@ -179,64 +181,6 @@ export function getTotalAssignedTeamsCount(user: AuthUser | null | undefined, te
   return 18;
 }
 
+`;
 
-export function getStoredUser(): AuthUser | null {
-  try {
-    const data = localStorage.getItem('coming_back_aniversario_auth_v1');
-    if (!data) return null;
-    return JSON.parse(data);
-  } catch (e) {
-    return null;
-  }
-}
-
-export function storeUser(user: AuthUser): void {
-  try {
-    localStorage.setItem('coming_back_aniversario_auth_v1', JSON.stringify(user));
-  } catch (e) {}
-}
-
-export function clearStoredUser(): void {
-  try {
-    localStorage.removeItem('coming_back_aniversario_auth_v1');
-  } catch (e) {}
-}
-
-export function canEvaluateTeam(user: AuthUser | null, teamId: number, teams: Team[]): boolean {
-  if (!user || user.role !== 'judge') return false;
-  const team = teams.find(t => t.id === teamId);
-  if (!team) return false;
-  return isTeamAvailableForJudge(team, user, teams);
-}
-
-export function canSubmitForStation(user: AuthUser | null, stationKey: StationKey): boolean {
-  if (!user || user.role !== 'judge') return false;
-  return user.stationKey === stationKey;
-}
-
-export function isAdminUser(user: AuthUser | null): boolean {
-  return user?.role === 'admin';
-}
-
-export function canResetDatabase(user: AuthUser | null): boolean {
-  return user?.role === 'admin';
-}
-
-export function getAssignedStationForSalaA(teamId: number): 'sala_a1' | 'sala_a2' | null {
-  if (teamId < 1 || teamId > 18) return null;
-  const positionInBlock = (teamId - 1) % 4;
-  return positionInBlock < 2 ? 'sala_a1' : 'sala_a2';
-}
-
-export function isCrisisJudgeSubmittedForTeam(team: Team, judgeUsername: string | undefined): boolean {
-  if (!team || !team.judgeEvaluations || !judgeUsername) return false;
-  return Boolean(team.judgeEvaluations[judgeUsername]?.isSubmitted);
-}
-
-export function getAssignedTeams(teams: Team[], user: AuthUser | null | undefined): Team[] {
-  if (!Array.isArray(teams) || !user) return [];
-  if (user.stationKey === 'sala_a1' || user.stationKey === 'sala_a2') {
-    return teams.filter(t => isTeamAssignedToStation(t.id, user.stationKey!)).sort((a, b) => a.id - b.id);
-  }
-  return teams.sort((a, b) => a.id - b.id);
-}
+fs.writeFileSync('src/utils/auth.ts', code);

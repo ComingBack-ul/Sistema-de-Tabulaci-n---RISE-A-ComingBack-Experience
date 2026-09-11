@@ -45,14 +45,24 @@ import { Activity, Users, UserCheck, Settings, ShieldCheck, FileSpreadsheet } fr
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => getStoredUser());
-  const [teams, setTeams] = useState<Team[]>(() => {
-    try {
-      return loadTeamsFromStorage();
-    } catch (e) {
-      console.error('Failed to load initial teams from storage:', e);
-      return getInitialTeams();
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [isInitializing, setIsInitializing] = useState(true);
+  
+  useEffect(() => {
+    async function init() {
+      try {
+        const { api } = await import('./services/apiClient');
+        if (currentUser?.role === 'admin' || currentUser?.role === 'judge') {
+          const data = await api.get('/api/teams');
+          setTeams(data as any);
+        }
+      } catch (e) {
+        setTeams(loadTeamsFromStorage());
+      }
+      setIsInitializing(false);
     }
-  });
+    init();
+  }, []);
   const [currentView, setCurrentView] = useState<ViewMode>('admin');
   const [adminTab, setAdminTab] = useState<AdminTab>('live');
   const [isOnline, setIsOnline] = useState<boolean>(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
@@ -122,7 +132,7 @@ export default function App() {
       }
 
       // Authorization guards
-      if (!canEvaluateTeam(currentUser, teamId, rawEvaluation.stationKey)) {
+      if (!canEvaluateTeam(currentUser, teamId, teams)) {
         setAppError('Acceso denegado: no tienes permisos para evaluar este equipo.');
         return;
       }
@@ -441,6 +451,10 @@ export default function App() {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} onParticipantLogin={() => setIsParticipantMode(true)} />;
   }
 
+  
+  if (isInitializing) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-4 border-[#991B1B] border-t-transparent"></div></div>;
+  }
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-['Plus_Jakarta_Sans']">
       {/* Top Navbar */}

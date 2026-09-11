@@ -170,7 +170,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 id="nav-btn-management"
                 onClick={onOpenDataModal}
-                title="Mesa Directiva (Exportar CSV, Demo, Reiniciar)"
+                title="Mesa Directiva (Exportar CSV, Reiniciar)"
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-red-200 hover:bg-white/20 hover:text-white transition-colors cursor-pointer"
               >
                 <Settings className="w-3.5 h-3.5" />

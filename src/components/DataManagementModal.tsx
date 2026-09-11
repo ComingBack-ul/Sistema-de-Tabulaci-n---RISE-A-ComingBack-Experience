@@ -194,7 +194,6 @@ export const DataManagementModal: React.FC<DataManagementModalProps> = ({
                 </button>
               </div>
 
-              {/* Action 2: Load Demo Data */}
               
 
               {/* Action 3: Backup & Restore JSON */}

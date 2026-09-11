@@ -1,4 +1,7 @@
-import express from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
+
+const content = `import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import fs from 'fs';
@@ -212,7 +215,9 @@ app.get('/api/participant/assignment/:rotationId', authenticateToken, requireRol
 });
 
 // --- JUDGE ENDPOINTS ---
-
+app.get('/api/judge/teams', authenticateToken, requireRole('judge'), (req, res) => {
+  res.json(teamsState);
+});
 
 app.put('/api/judge/evaluation', authenticateToken, requireRole('judge'), (req: any, res) => {
   const { teamId, evaluation } = req.body;
@@ -252,8 +257,7 @@ app.post('/api/admin/users', authenticateToken, requireRole('admin'), (req, res)
   res.json({ success: true });
 });
 
-app.get('/api/teams', authenticateToken, (req: any, res: any) => {
-  if (req.user.role === 'participant') return res.status(403).json({ error: 'Acceso denegado' });
+app.get('/api/admin/teams', authenticateToken, requireRole('admin'), (req, res) => {
   res.json(teamsState);
 });
 app.post('/api/admin/teams', authenticateToken, requireRole('admin'), (req, res) => {
@@ -301,8 +305,11 @@ async function startServer() {
     });
   }
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(\`Server running on http://localhost:\${PORT}\`);
   });
 }
 
 startServer();
+`;
+
+fs.writeFileSync('server.ts', content);

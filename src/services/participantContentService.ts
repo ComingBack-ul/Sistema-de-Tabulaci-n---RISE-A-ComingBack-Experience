@@ -76,16 +76,14 @@ export async function getCurrentRotationAsync(): Promise<RotationId> {
   return getCurrentRotation();
 }
 
+import { api } from './apiClient';
+
 export async function getParticipantAssignmentAsync(team: Team, rotation: RotationId): Promise<ParticipantContent | null> {
   try {
-    const res = await fetch(`/api/participant-assignment/${team.id}/${rotation}`);
-    if (res.ok) {
-      return await res.json();
-    }
-    if (res.status === 404) {
-      return null;
-    }
-  } catch (e) {
+    const res = await api.get<ParticipantContent>(`/api/participant/assignment/${rotation}`);
+    return res;
+  } catch (e: any) {
+    if (e.status === 404) return null;
     console.warn('Server unreachable for assignment, trying cache.', e);
   }
 

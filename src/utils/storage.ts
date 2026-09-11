@@ -549,7 +549,6 @@ export function appendAuditLog(entry: Omit<AuditLogEntry, 'id' | 'timestamp'>): 
 }
 
 /**
- * Generate Demo Data across all 8 judges:
  * Populates realistic scores for each judge account.
  */
 

@@ -32,9 +32,14 @@ import { LoginScreen } from './components/LoginScreen';
 import { JudgeDashboard } from './components/JudgeDashboard';
 import { JudgeModule } from './components/JudgeModule';
 import { AdminPanel } from './components/admin/AdminPanel';
+import { TeamsManagement } from './components/TeamsManagement';
+import { UsersManagement } from './components/UsersManagement';
+import { AdminLiveTab } from './components/AdminLiveTab';
+import { AdminSettings } from './components/admin/AdminSettings';
 import { AuditoriumProjection } from './components/AuditoriumProjection';
 import { DataManagementModal } from './components/DataManagementModal';
 import { TeamDetailModal } from './components/TeamDetailModal';
+import { Activity, Users, UserCheck, Settings, ShieldCheck, FileSpreadsheet } from 'lucide-react';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => getStoredUser());
@@ -458,7 +463,39 @@ export default function App() {
                   onOpenJudgeForTeam={handleOpenJudgeForTeam}
                   activeTab={adminTab}
                   onTabChange={setAdminTab}
-                />
+                >
+                  {adminTab === 'live' && (
+                    <AdminLiveTab
+                      teams={teams}
+                      onSelectTeamDetail={(team) => setSelectedTeamDetail(team)}
+                      onExportCSV={() => exportToCSV(teams)}
+                      onOpenJudgeForTeam={handleOpenJudgeForTeam}
+                    />
+                  )}
+
+                  {adminTab === 'teams' && (
+                    <TeamsManagement
+                      teams={teams}
+                      currentUser={currentUser}
+                      onTeamsUpdated={(newTeams) => setTeams(newTeams)}
+                      onOpenJudgeForTeam={handleOpenJudgeForTeam}
+                    />
+                  )}
+
+                  {adminTab === 'users' && (
+                    <UsersManagement
+                      currentUser={currentUser}
+                    />
+                  )}
+
+                  {adminTab === 'settings' && (
+                    <AdminSettings
+                      teams={teams}
+                      currentUser={currentUser}
+                      onDataUpdated={(newTeams) => setTeams(newTeams)}
+                    />
+                  )}
+                </AdminPanel>
               </div>
             )}
 

@@ -6,6 +6,7 @@ import {
   StationKey, 
   UserStatus 
 } from '../types';
+export type { ManagedUser, CreateUserDto, UpdateUserDto, UserStatus };
 import { STATION_DEFINITIONS, getStationDefinition } from '../utils/stationConstants';
 import { appendAuditLog } from '../utils/storage';
 
@@ -615,10 +616,19 @@ export function deleteUser(
  * Converts a ManagedUser to an AuthUser session object.
  */
 export function toAuthUser(user: ManagedUser): AuthUser {
+  if (user.role === 'admin') {
+    return {
+      username: user.username,
+      name: user.name,
+      role: 'admin',
+      status: user.status,
+    };
+  }
+
   return {
     username: user.username,
     name: user.name,
-    role: user.role,
+    role: 'judge',
     status: user.status,
     stationKey: user.stationKey,
     stationName: user.stationName,

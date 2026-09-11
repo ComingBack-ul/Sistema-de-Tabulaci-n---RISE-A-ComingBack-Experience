@@ -26,6 +26,7 @@ interface AdminPanelProps {
   initialTab?: AdminTab;
   activeTab?: AdminTab;
   onTabChange?: (tab: AdminTab) => void;
+  children?: React.ReactNode;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -38,6 +39,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   initialTab = 'live',
   activeTab,
   onTabChange,
+  children,
 }) => {
   const [internalTab, setInternalTab] = useState<AdminTab>(initialTab);
   const currentTab = activeTab !== undefined ? activeTab : internalTab;
@@ -150,34 +152,40 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {/* Tab Contents */}
       <div className="transition-all duration-200">
-        {currentTab === 'live' && (
-          <AdminLiveTab
-            teams={teams}
-            onSelectTeamDetail={onSelectTeamDetail}
-            onExportCSV={onExportCSV}
-            onOpenJudgeForTeam={onOpenJudgeForTeam}
-          />
-        )}
+        {children ? (
+          children
+        ) : (
+          <>
+            {currentTab === 'live' && (
+              <AdminLiveTab
+                teams={teams}
+                onSelectTeamDetail={onSelectTeamDetail}
+                onExportCSV={onExportCSV}
+                onOpenJudgeForTeam={onOpenJudgeForTeam}
+              />
+            )}
 
-        {currentTab === 'teams' && (
-          <TeamsManagement
-            teams={teams}
-            currentUser={currentUser}
-            onTeamsUpdated={onTeamsUpdated}
-            onOpenJudgeForTeam={onOpenJudgeForTeam}
-          />
-        )}
+            {currentTab === 'teams' && (
+              <TeamsManagement
+                teams={teams}
+                currentUser={currentUser}
+                onTeamsUpdated={onTeamsUpdated}
+                onOpenJudgeForTeam={onOpenJudgeForTeam}
+              />
+            )}
 
-        {currentTab === 'users' && (
-          <UsersManagement currentUser={currentUser} />
-        )}
+            {currentTab === 'users' && (
+              <UsersManagement currentUser={currentUser} />
+            )}
 
-        {currentTab === 'settings' && (
-          <AdminSettings
-            teams={teams}
-            currentUser={currentUser}
-            onDataUpdated={onTeamsUpdated}
-          />
+            {currentTab === 'settings' && (
+              <AdminSettings
+                teams={teams}
+                currentUser={currentUser}
+                onDataUpdated={onTeamsUpdated}
+              />
+            )}
+          </>
         )}
       </div>
     </div>

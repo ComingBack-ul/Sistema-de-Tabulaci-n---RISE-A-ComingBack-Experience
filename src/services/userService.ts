@@ -136,10 +136,11 @@ export const INITIAL_PRESET_USERS: ManagedUser[] = [
 ];
 
 /**
- * Normalizes username to lowercase, trimmed, with underscores.
+ * Normalizes username to lowercase, trimmed, with internal spaces converted to underscores.
  */
 export function normalizeUsername(username: string): string {
-  return username.trim().toLowerCase();
+  if (!username) return '';
+  return username.trim().toLowerCase().replace(/\s+/g, '_');
 }
 
 /**
@@ -154,7 +155,15 @@ export function normalizeSearchString(str: string): string {
 }
 
 /**
- * Loads all users from storage. Initializes from presets if empty.
+ * Loads all users from storage.
+ * Performs robust migration and seeding:
+ * 1. Reads stored users from localStorage.
+ * 2. Normalizes stored users and deduplicates by normalized username.
+ * 3. Preserves all existing managed user configurations (passwords, inactive status, stations, names, roles).
+ * 4. Preserves all custom users created by administrators (e.g. juez_nuevo).
+ * 5. Migrates any missing official preset users from INITIAL_PRESET_USERS.
+ * 6. Never reactivates an inactive user during migration.
+ * 7. Never overwrites changed passwords with preset defaults.
  */
 export function loadUsers(): ManagedUser[] {
   if (typeof window === 'undefined' || !window.localStorage) {
@@ -168,17 +177,105 @@ export function loadUsers(): ManagedUser[] {
       return [...INITIAL_PRESET_USERS];
     }
 
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
       saveUsers(INITIAL_PRESET_USERS);
       return [...INITIAL_PRESET_USERS];
     }
 
-    // Ensure status defaults to 'active' for legacy records
-    return parsed.map((u: ManagedUser) => ({
-      ...u,
-      status: u.status === 'inactive' ? 'inactive' : 'active',
-    }));
+    if (!Array.isArray(parsed)) {
+      saveUsers(INITIAL_PRESET_USERS);
+      return [...INITIAL_PRESET_USERS];
+    }
+
+    let hasChanges = false;
+    const userMap = new Map<string, ManagedUser>();
+
+    // 1. Process and normalize existing stored users
+    for (const item of parsed) {
+      if (!item || typeof item !== 'object') {
+        hasChanges = true;
+        continue;
+      }
+
+      const rawUsername = (item as Partial<ManagedUser>).username;
+      if (!rawUsername || typeof rawUsername !== 'string') {
+        hasChanges = true;
+        continue;
+      }
+
+      const cleanUsername = normalizeUsername(rawUsername);
+      if (!cleanUsername) {
+        hasChanges = true;
+        continue;
+      }
+
+      // If already encountered this username in the stored list (duplicate), skip duplicate
+      if (userMap.has(cleanUsername)) {
+        hasChanges = true;
+        continue;
+      }
+
+      const existingItem = item as Partial<ManagedUser>;
+      const role: 'judge' | 'admin' = existingItem.role === 'admin' ? 'admin' : 'judge';
+      
+      // CRITICAL RULE: Preserve 'inactive' status without reactivation.
+      // If a user was set to inactive by an admin, they MUST stay inactive.
+      const status: UserStatus = existingItem.status === 'inactive' ? 'inactive' : 'active';
+      
+      const stationKey = role === 'judge' && existingItem.stationKey ? existingItem.stationKey : undefined;
+      const stationDef = stationKey ? getStationDefinition(stationKey) : undefined;
+
+      const normalizedUser: ManagedUser = {
+        username: cleanUsername,
+        name: typeof existingItem.name === 'string' && existingItem.name.trim() 
+          ? existingItem.name.trim() 
+          : cleanUsername,
+        role,
+        // CRITICAL RULE: Preserve changed passwords, never overwrite with default preset
+        passwordHash: typeof existingItem.passwordHash === 'string' && existingItem.passwordHash.trim()
+          ? existingItem.passwordHash.trim()
+          : '12345678',
+        status,
+        stationKey,
+        stationName: existingItem.stationName || stationDef?.name,
+        stationType: existingItem.stationType || stationDef?.type,
+        maxPoints: existingItem.maxPoints || stationDef?.maxPoints,
+        challengeName: existingItem.challengeName || stationDef?.challengeName,
+        challengeDescription: existingItem.challengeDescription || stationDef?.challengeDescription,
+        createdAt: existingItem.createdAt || new Date().toISOString(),
+        updatedAt: existingItem.updatedAt || existingItem.createdAt,
+      };
+
+      if (rawUsername !== cleanUsername) {
+        hasChanges = true;
+      }
+
+      userMap.set(cleanUsername, normalizedUser);
+    }
+
+    // 2. Check each official user in INITIAL_PRESET_USERS
+    // If missing from storage -> add it.
+    // If it exists in storage -> KEEP current managed configuration (password, inactive status, name, etc.).
+    for (const preset of INITIAL_PRESET_USERS) {
+      const presetKey = normalizeUsername(preset.username);
+      
+      if (!userMap.has(presetKey)) {
+        userMap.set(presetKey, { ...preset });
+        hasChanges = true;
+      }
+    }
+
+    const finalUsers = Array.from(userMap.values());
+
+    // Persist if any preset was appended or corrupted/duplicated items cleaned up
+    if (hasChanges || finalUsers.length !== parsed.length) {
+      saveUsers(finalUsers);
+    }
+
+    return finalUsers;
   } catch (e) {
     console.error('Error loading users from storage:', e);
     return [...INITIAL_PRESET_USERS];

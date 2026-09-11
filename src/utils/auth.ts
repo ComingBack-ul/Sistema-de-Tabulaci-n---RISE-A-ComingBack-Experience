@@ -1,6 +1,6 @@
 import { AuthUser, StationKey, Team, UserStatus } from '../types';
 import { isValidStationKey, isValidStationType, STATION_SPEC_MAP } from './validation';
-import { loadUsers, toAuthUser } from '../services/userService';
+import { loadUsers, toAuthUser, normalizeUsername } from '../services/userService';
 
 /**
  * CLIENT-SIDE AUTHENTICATION NOTICE:
@@ -180,7 +180,8 @@ export function validateAuthUser(data: unknown): AuthUser | null {
   
   try {
     const managedUsers = loadUsers();
-    const managed = managedUsers.find((u) => u.username.toLowerCase() === cleanUsername);
+    const cleanUserNorm = normalizeUsername(cleanUsername);
+    const managed = managedUsers.find((u) => normalizeUsername(u.username) === cleanUserNorm || u.username.toLowerCase() === cleanUsername);
 
     if (!managed) {
       // User does not exist or was deleted -> invalidate session
@@ -234,9 +235,12 @@ export function findAccountByLoginName(inputName: string): UserAccount | null {
 
   try {
     const managedUsers = loadUsers();
+    const cleanUserNorm = normalizeUsername(cleanInput);
     
-    // 1. Match by exact username (case-insensitive)
-    const byUsername = managedUsers.find((u) => u.username.toLowerCase() === cleanInput.toLowerCase());
+    // 1. Match by username (case-insensitive or normalized)
+    const byUsername = managedUsers.find(
+      (u) => normalizeUsername(u.username) === cleanUserNorm || u.username.toLowerCase() === cleanInput.toLowerCase()
+    );
     if (byUsername) {
       return {
         loginName: byUsername.name,

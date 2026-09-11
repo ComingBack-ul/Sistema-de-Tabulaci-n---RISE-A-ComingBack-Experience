@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, UserCheck, Shield, Award, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { X, UserCheck, Shield, Award, AlertCircle, Eye, EyeOff, KeyRound } from 'lucide-react';
 import { ManagedUser, CreateUserDto, UpdateUserDto, UserRole, UserStatus, StationKey } from '../../types';
 import { STATION_SPECS } from '../../utils/stationConstants';
 
@@ -123,7 +123,6 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
         role,
         stationKey: role === 'judge' ? stationKey : undefined,
         status,
-        ...(password.trim() ? { password: password.trim() } : {}),
       };
 
       const res = onSave({
@@ -310,35 +309,42 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
             </div>
           )}
 
-          {/* Password field */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-              {isEditing ? 'Nueva Contraseña (Opcional)' : 'Contraseña de Acceso *'}
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={isEditing ? 'Dejar en blanco para mantener la clave actual' : 'Mínimo 4 caracteres'}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 pr-10 focus:ring-2 focus:ring-red-600 focus:border-red-600"
-                required={!isEditing}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
-                tabIndex={-1}
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
+          {/* Password field - Only during creation */}
+          {!isEditing ? (
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                Contraseña de Acceso <span className="text-red-600">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Mínimo 4 caracteres"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 pr-10 focus:ring-2 focus:ring-red-600 focus:border-red-600"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Clave inicial que el evaluador o directivo ingresará para autenticarse.
+              </p>
             </div>
-            <p className="text-[11px] text-slate-500 mt-1">
-              {isEditing
-                ? 'Si no desea modificar la clave, conserve este campo vacío.'
-                : 'Clave que el usuario ingresará en la pantalla de inicio de sesión.'}
-            </p>
-          </div>
+          ) : (
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 flex items-start gap-2">
+              <KeyRound className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <span>
+                La contraseña se administra de forma independiente. Para restablecer o cambiar la contraseña de <strong>@{userToEdit?.username}</strong>, utilice el botón con ícono de llave en la tabla de usuarios.
+              </span>
+            </div>
+          )}
 
           {/* Footer Actions */}
           <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">

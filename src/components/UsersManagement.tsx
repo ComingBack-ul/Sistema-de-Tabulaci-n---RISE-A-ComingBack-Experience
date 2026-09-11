@@ -493,9 +493,8 @@ export const UsersManagement: React.FC<UsersManagementProps> = ({ currentUser })
             setIsPasswordModalOpen(false);
             setTargetPasswordUser(null);
           }}
-          username={targetPasswordUser.username}
-          officialName={targetPasswordUser.name}
-          onSavePassword={handleSavePassword}
+          user={targetPasswordUser}
+          onSave={handleSavePassword}
         />
       )}
 

@@ -15,16 +15,19 @@ const STORAGE_KEY_CONFIG = 'rise_event_config_v1';
 // Synchronize state with the shared Express server source of truth
 export async function syncParticipantState(): Promise<void> {
   try {
-    const res = await fetch('/api/participant-state');
-    if (!res.ok) throw new Error('Failed to fetch from shared state');
-    const data = await res.json();
+    const [configRes, contentRes] = await Promise.all([
+      fetch('/api/participant-config'),
+      fetch('/api/participant-content')
+    ]);
     
-    // Update local fallbacks
-    if (data.content) {
-      saveAllParticipantContent(data.content);
+    if (configRes.ok) {
+      const config = await configRes.json();
+      setCurrentRotation(config.currentRotation as RotationId, false);
     }
-    if (data.currentRotation) {
-      setCurrentRotation(data.currentRotation as RotationId, false);
+    
+    if (contentRes.ok) {
+      const content = await contentRes.json();
+      saveAllParticipantContent(content);
     }
   } catch (error) {
     console.warn('Could not sync with shared source of truth. Using localStorage fallback.', error);
@@ -77,10 +80,10 @@ export function setCurrentRotation(rotation: RotationId, syncToServer = true) {
     
     // If the admin changes this, push to server
     if (syncToServer) {
-      fetch('/api/participant-state/rotation', {
-        method: 'POST',
+      fetch('/api/participant-config', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rotation })
+        body: JSON.stringify({ currentRotation: rotation })
       }).catch(e => console.error('Failed to update global rotation on server', e));
     }
   } catch (error) {

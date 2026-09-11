@@ -124,17 +124,31 @@ function saveState() {
 loadState();
 
 // API Endpoints
-app.get('/api/participant-state', (req, res) => {
-  res.json(eventState);
+app.get('/api/participant-config', (req, res) => {
+  res.json({ currentRotation: eventState.currentRotation });
 });
 
-app.post('/api/participant-state/rotation', (req, res) => {
-  const { rotation } = req.body;
-  if (rotation) {
-    eventState.currentRotation = rotation;
+app.put('/api/participant-config', (req, res) => {
+  const { currentRotation } = req.body;
+  if (currentRotation) {
+    eventState.currentRotation = currentRotation;
     saveState();
   }
-  res.json(eventState);
+  res.json({ currentRotation: eventState.currentRotation });
+});
+
+app.get('/api/participant-content', (req, res) => {
+  res.json(eventState.content);
+});
+
+app.get('/api/participant-assignment/:teamId/:rotationId', (req, res) => {
+  const { teamId, rotationId } = req.params;
+  const rotationData = eventState.content[rotationId];
+  if (rotationData && rotationData.teamAssignments[teamId]) {
+    res.json(rotationData.teamAssignments[teamId]);
+  } else {
+    res.status(404).json({ error: 'Not found' });
+  }
 });
 
 async function startServer() {

@@ -5,8 +5,8 @@ import {
   RoomId, 
   Team,
   OratoryOrganization,
-  OratoryAssignment,
-  KeywordChallenge
+  OratoryAssignment 
+  
 } from '../types';
 
 const STORAGE_KEY_CONTENT = 'rise_participant_content_v1';
@@ -104,9 +104,7 @@ export async function getSafeParticipantAssignmentAsync(team: Team, rotation: Ro
     delete safeContent.oratory.keyword;
   }
   
-  if (safeContent.keywordChallenge) {
-    delete safeContent.keywordChallenge.keyword;
-  }
+  
   
   return safeContent;
 }
@@ -174,7 +172,7 @@ export function getSafeParticipantAssignment(team: Team, rotation: RotationId) {
 
   const safeContent = JSON.parse(JSON.stringify(content));
   if (safeContent.oratory) delete safeContent.oratory.keyword;
-  if (safeContent.keywordChallenge) delete safeContent.keywordChallenge.keyword;
+  
   
   return safeContent;
 }

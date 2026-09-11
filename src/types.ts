@@ -180,42 +180,73 @@ export type RoomId = 'sala_a' | 'sala_b_e' | 'sala_f';
 export type ViewMode = 'admin' | 'judge' | 'projection';
 
 // =========================================================================
-// PARTICIPANT CONTENT & ASSIGNMENT MODELS (PROMPT 2.0)
+// OFFICIAL CONTENT POOLS & ASSIGNMENT MODELS (PHASE 3)
 // =========================================================================
-
-export type RotationId = 'rotation_1' | 'rotation_2' | 'rotation_3' | 'rotation_4' | 'rotation_5' | 'rotation_6';
-
+export type RotationId = 'rotation_1' | 'rotation_2' | 'rotation_3';
 export type OratoryOrganization = 'Unión Europea' | 'Estados Unidos' | 'República Popular China' | 'AOSIS';
 
-export interface OratoryAssignment {
-  organization: OratoryOrganization;
-  position: string;
-  requiredSpeechFragment: string;
-  diplomaticFragment: string;
-  clues: string[];
-  keyword: string; // HIDDEN FROM PARTICIPANT UI
-  participantInstructions: string;
+export interface OfficialPhrase {
+  id: 'A' | 'B' | 'C' | 'D';
+  text: string;
 }
 
-export interface DebateAssignment {
-  motion: string;
-  participantSide: 'Proposición' | 'Oposición';
-  instructions: string;
-  preparationNotes?: string;
+export interface OfficialRiddle {
+  id: string;
+  text: string;
+  solution: string; // PRIVATE
 }
 
-export interface CrisisAssignment {
-  crisisTitle: string;
+export interface OfficialMotion {
+  id: string;
+  text: string;
+}
+
+export interface OfficialCrisis {
+  id: 'A' | 'B' | 'C';
+  title: string;
   scenario: string;
-  diplomaticObjective: string;
-  instructions: string;
-  relevantContext: string;
+  diplomaticObjective?: string;
+  instructions?: string;
+  relevantContext?: string;
   requiredOutcome?: string;
 }
 
-export interface KeywordChallenge {
-  challengeText: string;
-  keyword: string;
+export interface OfficialContentPool {
+  phrases: OfficialPhrase[];
+  riddles: OfficialRiddle[];
+  motions: OfficialMotion[];
+  crises: OfficialCrisis[];
+  rotationCodes: Partial<Record<RotationId, string>>; // PRIVATE
+}
+
+export interface OratoryAssignment {
+  organization: OratoryOrganization;
+  phraseId?: 'A' | 'B' | 'C' | 'D';
+  riddleId?: string;
+  // Fallbacks for UI backwards compatibility if needed
+  position?: string;
+  requiredSpeechFragment?: string;
+  diplomaticFragment?: string;
+  clues?: string[];
+  participantInstructions?: string;
+}
+
+export interface DebateAssignment {
+  motionId?: string;
+  participantSide?: 'Proposición' | 'Oposición';
+  instructions?: string;
+  preparationNotes?: string;
+  motion?: string;
+}
+
+export interface CrisisAssignment {
+  crisisId?: 'A' | 'B' | 'C';
+  crisisTitle?: string;
+  scenario?: string;
+  diplomaticObjective?: string;
+  instructions?: string;
+  relevantContext?: string;
+  requiredOutcome?: string;
 }
 
 export interface ParticipantContent {
@@ -225,10 +256,15 @@ export interface ParticipantContent {
   oratory?: OratoryAssignment;
   debate?: DebateAssignment;
   crisis?: CrisisAssignment;
-  keywordChallenge?: KeywordChallenge;
 }
 
 export interface RotationAssignment {
   rotationId: RotationId;
   teamAssignments: Record<number, ParticipantContent>;
+}
+
+export interface EventState {
+  currentRotation: RotationId;
+  officialPool: OfficialContentPool;
+  assignments: Record<RotationId, RotationAssignment>;
 }

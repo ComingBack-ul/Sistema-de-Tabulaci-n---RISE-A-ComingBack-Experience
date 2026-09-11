@@ -43,17 +43,19 @@ export function isStorageAvailable(): boolean {
 }
 
 /**
- * Genera la lista limpia de 50 equipos en Estado Cero
+ * Genera la lista limpia de 18 equipos en Estado Cero
  * Estructura dinámica lista para recibir la base de datos real o edición desde el panel directivo
  */
 export function getInitialTeams(): Team[] {
   const teams: Team[] = [];
-  for (let i = 1; i <= 50; i++) {
-    const wave: Wave = i <= 25 ? 'morning' : 'afternoon';
-
+  const officialNames = ["Los Scooby Doo","Las tortugas ninja","Eclipse","Invernalia","Los 4 fantásticos","El cuarto poder","4 cerebros, 0 ideas","Los fénix azules","Los Pilares Del Silencio","Los 4 elementos","El Equipito","NEXO","Scooby-Doo","Club mapache (GARIMAJU)","Los mofios","Los 4 en oferta","Águila americana","Mentes bonitas"];
+  
+  officialNames.forEach((name, idx) => {
+    const i = idx + 1;
+    const wave: Wave = i <= 9 ? 'morning' : 'afternoon';
     teams.push({
       id: i,
-      name: `Equipo ${i}`,
+      name: name,
       wave,
       members: [], // Sin integrantes ficticios, listos para ingresar lista definitiva
       status: 'active',
@@ -68,11 +70,11 @@ export function getInitialTeams(): Team[] {
       locksPassed: 0,
       allRoomsCompleted: false,
       rank: i,
-      waveRank: wave === 'morning' ? i : i - 25,
+      waveRank: wave === 'morning' ? i : i - 9,
       isBreakQualified: false,
       lastUpdated: new Date().toISOString()
     });
-  }
+  });
   return computeRanksAndBreak(teams);
 }
 
@@ -357,7 +359,7 @@ export function loadTeamsFromStorage(): Team[] {
       localStorage.setItem(backupKey, raw);
     } catch {}
     throw new StorageCorruptionError(
-      `Estructura de datos incompleta o corrupta (se esperaban entre 1 y 50 equipos, encontrados ${Array.isArray(parsed) ? parsed.length : 'no-array'}). Se ha creado una copia de seguridad.`,
+      `Estructura de datos incompleta o corrupta (se esperaban entre 1 y 18 equipos, encontrados ${Array.isArray(parsed) ? parsed.length : 'no-array'}). Se ha creado una copia de seguridad.`,
       raw,
       backupKey
     );
@@ -731,7 +733,7 @@ export function exportToCSV(teams: Team[]): void {
       t.isBreakQualified ? 'CLASIFICADO TOP 4' : 'Fase Regular',
       t.id,
       escapeCSV(t.name),
-      t.wave === 'morning' ? 'Mañana (1-25)' : 'Tarde (26-50)',
+      t.wave === 'morning' ? 'Mañana (1-9)' : 'Tarde (10-18)',
       escapeCSV(t.members.join(' | ')),
       a1,
       a1Lock,
@@ -821,7 +823,7 @@ export function importBackupJSON(jsonString: string): Team[] {
   }
 
   if (data.teams.length < 1 || data.teams.length > 50) {
-    throw new InvalidBackupError(`El respaldo debe contener entre 1 y 50 equipos (encontrados: ${data.teams.length}).`);
+    throw new InvalidBackupError(`El respaldo debe contener entre 1 y 18 equipos (encontrados: ${data.teams.length}).`);
   }
 
   const seenIds = new Set<number>();
@@ -925,7 +927,7 @@ export function importBackupJSON(jsonString: string): Team[] {
     appendAuditLog({
       teamId: 0,
       room: 'SISTEMA',
-      action: 'Restauración de respaldo JSON validado (50 equipos)',
+      action: 'Restauración de respaldo JSON validado (18 equipos)',
       judgeName: 'Mesa Directiva',
     });
   } catch (err) {

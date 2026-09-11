@@ -20,18 +20,26 @@ const ORGANIZATIONS: OratoryOrganization[] = [
   'AOSIS'
 ];
 
-function getOrganizationForTeam(teamId: number): OratoryOrganization {
-  // A1: 1, 2, 5, 6, 9, 10
-  // A2: 3, 4, 7, 8, 11, 12
-  // We need to map every group of 4 teams to the 4 organizations uniquely.
-  // 1 -> org 0, 2 -> org 1, 3 -> org 2, 4 -> org 3
-  const index = (teamId - 1) % 4;
-  return ORGANIZATIONS[index];
+function generateTeamOrganizations(maxTeams: number): Record<number, OratoryOrganization> {
+  const mapping: Record<number, OratoryOrganization> = {};
+  for (let groupStart = 1; groupStart <= maxTeams; groupStart += 4) {
+    // Shuffle the 4 organizations randomly for this group of 4 teams
+    const shuffledOrgs = [...ORGANIZATIONS].sort(() => Math.random() - 0.5);
+    for (let i = 0; i < 4; i++) {
+      if (groupStart + i <= maxTeams) {
+        mapping[groupStart + i] = shuffledOrgs[i];
+      }
+    }
+  }
+  return mapping;
 }
 
 function generateSeedContent(): Record<RotationId, RotationAssignment> {
   const rotations: RotationId[] = ['rotation_1', 'rotation_2', 'rotation_3'];
   const data: Record<RotationId, RotationAssignment> = {} as any;
+  
+  // Generate stable random organizations for all 50 teams first
+  const teamOrgs = generateTeamOrganizations(50);
 
   rotations.forEach((rotation, rIndex) => {
     const teamAssignments: Record<number, ParticipantContent> = {};
@@ -45,47 +53,47 @@ function generateSeedContent(): Record<RotationId, RotationAssignment> {
       let content: ParticipantContent = {
         rotationId: rotation,
         room: 'sala_a',
-        title: `Rotación ${rIndex + 1} - Asignación`,
+        title: `[DEMO] Rotación ${rIndex + 1} - Asignación`,
       };
 
       if (roomTypeMod === 0) {
         room = 'sala_a';
-        const org = getOrganizationForTeam(teamId);
+        const org = teamOrgs[teamId];
         content.room = room;
-        content.title = `Sala A - Oratoria (Rotación ${rIndex + 1})`;
+        content.title = `[DEMO] Sala A - Oratoria (Rotación ${rIndex + 1})`;
         content.oratory = {
           organization: org,
-          position: `Postura oficial de ${org} frente a los nuevos desafíos globales.`,
-          requiredSpeechFragment: `[Fragmento obligatorio de Oratoria R${rIndex + 1}] "En vista de la creciente inestabilidad..."`,
-          diplomaticFragment: `[Fragmento Diplomático R${rIndex + 1}] "La cooperación mutua es imperativa."`,
+          position: `[DEMO] Postura oficial de ${org} frente a los nuevos desafíos globales.`,
+          requiredSpeechFragment: `[DEMO] Fragmento obligatorio R${rIndex + 1}`,
+          diplomaticFragment: `[DEMO] Fragmento Diplomático R${rIndex + 1}`,
           clues: [
-            `Pista 1 para R${rIndex + 1}: Busca alianzas tempranas.`,
-            `Pista 2 para R${rIndex + 1}: Evalúa las sanciones.`
+            `[DEMO] Pista 1 para R${rIndex + 1}`,
+            `[DEMO] Pista 2 para R${rIndex + 1}`
           ],
           keyword: `KEY_A_${rIndex + 1}_${teamId}`,
-          participantInstructions: `Debes integrar el fragmento obligatorio durante tus 3 minutos de intervención principal. Representas a ${org}.`
+          participantInstructions: `[DEMO] Instrucciones: Representas a ${org}. Debes integrar el fragmento obligatorio.`
         };
       } else if (roomTypeMod === 1) {
         room = 'sala_b_e';
         content.room = room;
-        content.title = `Salas B-E - Debate (Rotación ${rIndex + 1})`;
+        content.title = `[DEMO] Salas B-E - Debate (Rotación ${rIndex + 1})`;
         content.debate = {
-          motion: `EC cree que la tecnología de Rotación ${rIndex + 1} resolverá el conflicto.`,
+          motion: `[DEMO] EC cree que la tecnología de Rotación ${rIndex + 1} resolverá el conflicto.`,
           participantSide: teamId % 2 === 0 ? 'Proposición' : 'Oposición',
-          instructions: 'Prepara tu línea argumental en 15 minutos. El debate usará formato parlamentario.',
-          preparationNotes: 'Céntrate en impactos a corto plazo.'
+          instructions: '[DEMO] Prepara tu línea argumental en 15 minutos.',
+          preparationNotes: '[DEMO] Notas de contexto a considerar.'
         };
       } else {
         room = 'sala_f';
         content.room = room;
-        content.title = `Sala F - Crisis (Rotación ${rIndex + 1})`;
+        content.title = `[DEMO] Sala F - Crisis (Rotación ${rIndex + 1})`;
         content.crisis = {
-          crisisTitle: `Evento Crítico ${rIndex + 1}: Colapso del mercado global`,
-          scenario: `Las bolsas globales acaban de caer un ${(rIndex + 1) * 10}% en 24 horas.`,
-          diplomaticObjective: 'Estabilizar las rutas comerciales prioritarias antes de que finalice la sesión.',
-          instructions: 'Redacta una directiva de emergencia de máximo 2 páginas.',
-          relevantContext: 'Las reservas energéticas mundiales también están comprometidas.',
-          requiredOutcome: 'Firma un tratado comercial trilateral.'
+          crisisTitle: `[DEMO] Evento Crítico R${rIndex + 1}`,
+          scenario: `[DEMO] Escenario de crisis simulado para R${rIndex + 1}.`,
+          diplomaticObjective: '[DEMO] Objetivo diplomático oficial de la sesión.',
+          instructions: '[DEMO] Redacta una directiva de emergencia.',
+          relevantContext: '[DEMO] Contexto de trasfondo.',
+          requiredOutcome: '[DEMO] Requisito de salida esperado.'
         };
       }
       

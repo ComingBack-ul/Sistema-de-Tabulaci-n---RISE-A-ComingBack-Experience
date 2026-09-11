@@ -153,7 +153,11 @@ export default function App() {
         return;
       }
 
-      // Check for Sala A Fixed Assignment Collision
+      // Check for inactive status before saving evaluations
+      if (targetTeam.status === 'inactive') {
+        setAppError(`El Equipo #${teamId} está inactivo y no puede recibir nuevas evaluaciones.`);
+        return;
+      }
       if (evaluation.isSubmitted && (evaluation.stationKey === 'sala_a1' || evaluation.stationKey === 'sala_a2')) {
         const assignedStation = getAssignedStationForSalaA(teamId);
         if (assignedStation && assignedStation !== evaluation.stationKey) {
@@ -273,7 +277,11 @@ export default function App() {
         return;
       }
 
-      // Map RoomId to designated judge account
+      // Check for inactive status before saving administrative scores
+      if (targetTeam.status === 'inactive') {
+        setAppError(`El Equipo #${teamId} está inactivo y no puede recibir nuevas evaluaciones.`);
+        return;
+      }
       const targetJudgeUsername: ValidJudgeUsername =
         room === 'sala_a'
           ? (getAssignedStationForSalaA(teamId) === 'sala_a1' ? 'juez_sala_a1' : 'juez_sala_a2')

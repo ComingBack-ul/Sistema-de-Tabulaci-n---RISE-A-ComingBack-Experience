@@ -1,5 +1,6 @@
-import { AuthUser, StationKey, Team } from '../types';
+import { AuthUser, StationKey, Team, UserStatus } from '../types';
 import { isValidStationKey, isValidStationType, STATION_SPEC_MAP } from './validation';
+import { loadUsers, toAuthUser } from '../services/userService';
 
 /**
  * CLIENT-SIDE AUTHENTICATION NOTICE:
@@ -12,8 +13,9 @@ import { isValidStationKey, isValidStationType, STATION_SPEC_MAP } from './valid
 export interface UserAccount {
   loginName: string; // The official evaluator's real name used for login
   internalUsername: string; // The internal station key identifier (e.g. juez_sala_a1)
-  passwordHash: string; // Preset station password for tournament consoles
+  passwordHash: string; // Station password for tournament consoles
   user: AuthUser;
+  status?: UserStatus;
 }
 
 export const PRESET_ACCOUNTS: Record<string, UserAccount> = {
@@ -160,12 +162,8 @@ export const PRESET_ACCOUNTS: Record<string, UserAccount> = {
 const AUTH_STORAGE_KEY = 'coming_back_aniversario_auth_session_v1';
 
 /**
- * Validates the structure, schema, and authenticity of an AuthUser object against PRESET_ACCOUNTS.
- * The stored session is treated as untrusted input and must strictly match a configured preset account.
- * Fails closed and returns null if any field is invalid or tampered with.
- *
- * NOTE: This is client-side integrity hardening to protect against session tampering in localStorage
- * until a server-authoritative authentication system is introduced.
+ * Validates the structure, schema, and authenticity of an AuthUser object against managed users.
+ * Fails closed and returns null if any field is invalid, tampered with, or if the account is deactivated.
  */
 export function validateAuthUser(data: unknown): AuthUser | null {
   if (!data || typeof data !== 'object') {
@@ -179,6 +177,26 @@ export function validateAuthUser(data: unknown): AuthUser | null {
   }
 
   const cleanUsername = user.username.trim().toLowerCase();
+  
+  try {
+    const managedUsers = loadUsers();
+    const managed = managedUsers.find((u) => u.username.toLowerCase() === cleanUsername);
+
+    if (managed) {
+      // Inactive users cannot have valid sessions
+      if (managed.status === 'inactive') {
+        return null;
+      }
+      if (user.role !== managed.role) {
+        return null;
+      }
+      return toAuthUser(managed);
+    }
+  } catch (err) {
+    console.warn('Error loading managed users for session validation:', err);
+  }
+
+  // Fallback to PRESET_ACCOUNTS for backward compatibility
   const presetAccount = PRESET_ACCOUNTS[cleanUsername];
   if (!presetAccount) {
     return null;
@@ -186,13 +204,7 @@ export function validateAuthUser(data: unknown): AuthUser | null {
 
   const expected = presetAccount.user;
 
-  // Verify role matches preset
-  if (user.role !== expected.role) {
-    return null;
-  }
-
-  // Verify name matches preset
-  if (user.name !== expected.name) {
+  if (user.role !== expected.role || user.name !== expected.name) {
     return null;
   }
 
@@ -201,34 +213,16 @@ export function validateAuthUser(data: unknown): AuthUser | null {
       username: expected.username,
       role: 'admin',
       name: expected.name,
+      status: 'active',
     };
   }
 
   if (expected.role === 'judge') {
-    // Judge accounts must strictly match all station parameters
-    if (user.stationKey !== expected.stationKey) {
-      return null;
-    }
-    if (user.stationType !== expected.stationType) {
-      return null;
-    }
-    if (user.maxPoints !== expected.maxPoints) {
-      return null;
-    }
-    if (user.stationName !== expected.stationName) {
-      return null;
-    }
-    if (user.challengeName !== expected.challengeName) {
-      return null;
-    }
-    if (user.challengeDescription !== expected.challengeDescription) {
-      return null;
-    }
-
     return {
       username: expected.username,
       role: 'judge',
       name: expected.name,
+      status: 'active',
       stationKey: expected.stationKey,
       stationName: expected.stationName,
       stationType: expected.stationType,
@@ -253,8 +247,8 @@ function normalizeName(str: string): string {
 }
 
 /**
- * Finds a configured user account by evaluator name (or admin login name).
- * Rejects raw internal station keys (e.g. juez_sala_a1) from being used directly as the login identifier.
+ * Finds a configured user account by evaluator username or official name.
+ * Searches authoritative managed users first, with fallback to presets.
  */
 export function findAccountByLoginName(inputName: string): UserAccount | null {
   const cleanInput = inputName.trim();
@@ -262,26 +256,80 @@ export function findAccountByLoginName(inputName: string): UserAccount | null {
 
   const normalizedInput = normalizeName(cleanInput);
 
-  // Exact matching against configured loginName / user.name
+  try {
+    const managedUsers = loadUsers();
+    
+    // 1. Match by exact username (case-insensitive)
+    const byUsername = managedUsers.find((u) => u.username.toLowerCase() === cleanInput.toLowerCase());
+    if (byUsername) {
+      return {
+        loginName: byUsername.name,
+        internalUsername: byUsername.username,
+        passwordHash: byUsername.passwordHash,
+        user: toAuthUser(byUsername),
+        status: byUsername.status,
+      };
+    }
+
+    // 2. Match by normalized official name
+    const byName = managedUsers.find((u) => normalizeName(u.name) === normalizedInput);
+    if (byName) {
+      return {
+        loginName: byName.name,
+        internalUsername: byName.username,
+        passwordHash: byName.passwordHash,
+        user: toAuthUser(byName),
+        status: byName.status,
+      };
+    }
+
+    // 3. Match admin alias
+    if (normalizedInput === 'admin_tab' || normalizedInput === 'admintab' || normalizedInput === 'admin') {
+      const admin = managedUsers.find((u) => u.role === 'admin' && u.status === 'active');
+      if (admin) {
+        return {
+          loginName: admin.name,
+          internalUsername: admin.username,
+          passwordHash: admin.passwordHash,
+          user: toAuthUser(admin),
+          status: admin.status,
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('Error querying managed users:', err);
+  }
+
+  // Fallback to PRESET_ACCOUNTS
   for (const account of Object.values(PRESET_ACCOUNTS)) {
     const normalizedLoginName = normalizeName(account.loginName);
     const normalizedUserName = normalizeName(account.user.name);
+    const normalizedUsername = normalizeName(account.user.username);
 
-    if (normalizedInput === normalizedLoginName || normalizedInput === normalizedUserName) {
-      return account;
+    if (
+      normalizedInput === normalizedLoginName || 
+      normalizedInput === normalizedUserName || 
+      normalizedInput === normalizedUsername
+    ) {
+      return {
+        ...account,
+        status: 'active',
+      };
     }
   }
 
-  // Also support admin login with "admin_tab" or "Admin Tabulación" for board access
   if (normalizedInput === 'admin_tab' || normalizedInput === 'admintab') {
-    return PRESET_ACCOUNTS.admin_tab;
+    return {
+      ...PRESET_ACCOUNTS.admin_tab,
+      status: 'active',
+    };
   }
 
   return null;
 }
 
 /**
- * Authenticates user credentials against preset evaluator accounts using the evaluator's real name.
+ * Authenticates user credentials against authoritative managed users or preset accounts.
  */
 export function authenticate(
   usernameOrName: string, 
@@ -290,14 +338,17 @@ export function authenticate(
   const account = findAccountByLoginName(usernameOrName);
 
   if (!account) {
-    return { success: false, error: 'Usuario no reconocido. Ingrese su nombre oficial de evaluador.' };
+    return { success: false, error: 'Usuario no reconocido. Ingrese su usuario o nombre oficial.' };
+  }
+
+  if (account.status === 'inactive') {
+    return { success: false, error: 'Esta cuenta se encuentra desactivada. Contacte a la Mesa Directiva.' };
   }
 
   if (account.passwordHash !== password.trim()) {
     return { success: false, error: 'Contraseña incorrecta. Ingrese la clave asignada por la Mesa Directiva.' };
   }
 
-  // Validate the preset user structure before storing
   const validUser = validateAuthUser(account.user);
   if (!validUser) {
     return { success: false, error: 'Error de integridad en la configuración de la cuenta.' };
@@ -506,12 +557,13 @@ export function isTeamAssignedToJudge(
  */
 export function getAssignedTeams(teams: Team[], user: AuthUser | null | undefined): Team[] {
   if (!Array.isArray(teams) || !user) return [];
+  const activeTeams = teams.filter((t) => t.status !== 'inactive');
   if (user.stationKey === 'sala_a1' || user.stationKey === 'sala_a2') {
-    return teams
+    return activeTeams
       .filter((t) => isTeamAssignedToStation(t.id, user.stationKey))
       .sort((a, b) => a.id - b.id);
   }
-  return [...teams].sort((a, b) => a.id - b.id);
+  return [...activeTeams].sort((a, b) => a.id - b.id);
 }
 
 /**
@@ -554,7 +606,7 @@ export function isCrisisTeamFullyEvaluated(team: Team): boolean {
  */
 export function getCurrentCrisisTeam(teams: Team[]): Team | null {
   if (!Array.isArray(teams) || teams.length === 0) return null;
-  const sorted = [...teams].sort((a, b) => a.id - b.id);
+  const sorted = [...teams].filter((t) => t.status !== 'inactive').sort((a, b) => a.id - b.id);
   const current = sorted.find((team) => !isCrisisTeamFullyEvaluated(team));
   return current || null;
 }
@@ -588,6 +640,7 @@ export function isTeamAvailableForJudge(
   allTeams?: Team[]
 ): boolean {
   if (!team || !team.id || !user) return false;
+  if (team.status === 'inactive') return false;
 
   const evals = team.judgeEvaluations || {};
 

@@ -5,8 +5,10 @@ import {
   StationKey, 
   StationType, 
   AuthUser, 
-  AuditLogEntry 
+  AuditLogEntry,
+  TeamStatus
 } from '../types';
+import { loadUsers } from '../services/userService';
 
 /**
  * Custom Error hierarchy for storage, validation and authorization failure cases.
@@ -129,10 +131,20 @@ export function isValidStationKey(key: unknown): key is StationKey {
 }
 
 /**
- * Validates whether a value is a valid preset Judge username.
+ * Validates whether a value is a valid Judge username (preset or managed dynamic user).
  */
-export function isValidJudgeUsername(username: unknown): username is ValidJudgeUsername {
-  return typeof username === 'string' && VALID_JUDGE_USERNAMES.includes(username as ValidJudgeUsername);
+export function isValidJudgeUsername(username: unknown): boolean {
+  if (typeof username !== 'string' || !username.trim()) return false;
+  const clean = username.trim().toLowerCase();
+  if (VALID_JUDGE_USERNAMES.includes(clean as ValidJudgeUsername)) return true;
+  // Check dynamically managed users
+  try {
+    const users = loadUsers();
+    const found = users.find(u => u.username.toLowerCase() === clean);
+    return Boolean(found && found.role === 'judge');
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -210,8 +222,18 @@ export function validateJudgeEvaluation(
   }
 
   // 3. Station key must match the designated station for this judge username
-  const expectedStationKey = JUDGE_TO_STATION_MAP[cleanJudgeUsername];
-  if (evalObj.stationKey !== expectedStationKey) {
+  let expectedStationKey: StationKey | undefined = JUDGE_TO_STATION_MAP[cleanJudgeUsername as ValidJudgeUsername];
+  if (!expectedStationKey) {
+    try {
+      const users = loadUsers();
+      const found = users.find(u => u.username.toLowerCase() === cleanJudgeUsername.toLowerCase());
+      if (found && found.stationKey) {
+        expectedStationKey = found.stationKey;
+      }
+    } catch {}
+  }
+
+  if (expectedStationKey && evalObj.stationKey !== expectedStationKey) {
     return {
       valid: false,
       error: `La estación '${evalObj.stationKey}' no corresponde al juez '${cleanJudgeUsername}' (se esperaba '${expectedStationKey}').`,
@@ -439,6 +461,7 @@ export function validateTeam(team: unknown): { valid: boolean; error?: string; d
     id: t.id,
     name: t.name.trim().slice(0, 100),
     wave: t.wave,
+    status: (t.status === 'inactive' ? 'inactive' : 'active') as TeamStatus,
     members: Array.isArray(t.members) 
       ? t.members.map((m) => (typeof m === 'string' ? m.trim().slice(0, 100) : '')).filter(Boolean)
       : [],
@@ -450,6 +473,7 @@ export function validateTeam(team: unknown): { valid: boolean; error?: string; d
     waveRank: 0,
     isBreakQualified: false,
     judgeEvaluations: cleanJudgeEvaluations,
+    lastUpdated: t.lastUpdated,
   };
 
   return { valid: true, data: cleanTeam };

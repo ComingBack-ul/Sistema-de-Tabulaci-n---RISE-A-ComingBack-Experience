@@ -271,15 +271,15 @@ export function computeRanksAndBreak(teams: Team[]): Team[] {
     team.rank = index + 1;
   });
 
-  // Morning wave ranking & Break (Top 2 Morning)
-  const morningTeams = sortedGlobal.filter((t) => t.wave === 'morning');
+  // Morning wave ranking & Break (Top 2 Morning - only active teams qualify)
+  const morningTeams = sortedGlobal.filter((t) => t.wave === 'morning' && t.status !== 'inactive');
   morningTeams.forEach((team, index) => {
     team.waveRank = index + 1;
   });
   const top2MorningIds = new Set(morningTeams.slice(0, 2).map((t) => t.id));
 
-  // Afternoon wave ranking & Break (Top 2 Afternoon)
-  const afternoonTeams = sortedGlobal.filter((t) => t.wave === 'afternoon');
+  // Afternoon wave ranking & Break (Top 2 Afternoon - only active teams qualify)
+  const afternoonTeams = sortedGlobal.filter((t) => t.wave === 'afternoon' && t.status !== 'inactive');
   afternoonTeams.forEach((team, index) => {
     team.waveRank = index + 1;
   });
@@ -295,9 +295,10 @@ export function computeRanksAndBreak(teams: Team[]): Team[] {
       Object.values(t.judgeEvaluations || {}).some((e) => e.isSubmitted)
   );
 
-  // Mark Break Qualifiers ONLY if real scores exist
+  // Mark Break Qualifiers ONLY if real scores exist and team is active
   sortedGlobal.forEach((team) => {
     team.isBreakQualified =
+      team.status !== 'inactive' &&
       hasAnyEvaluations &&
       ((team.wave === 'morning' && top2MorningIds.has(team.id)) ||
         (team.wave === 'afternoon' && top2AfternoonIds.has(team.id)));
@@ -348,13 +349,13 @@ export function loadTeamsFromStorage(): Team[] {
     );
   }
 
-  if (!Array.isArray(parsed) || parsed.length !== 50) {
+  if (!Array.isArray(parsed) || parsed.length === 0 || parsed.length > 50) {
     const backupKey = `coming_back_corrupted_backup_${Date.now()}`;
     try {
       localStorage.setItem(backupKey, raw);
     } catch {}
     throw new StorageCorruptionError(
-      `Estructura de datos incompleta o corrupta (se esperaban 50 equipos, encontrados ${Array.isArray(parsed) ? parsed.length : 'no-array'}). Se ha creado una copia de seguridad.`,
+      `Estructura de datos incompleta o corrupta (se esperaban entre 1 y 50 equipos, encontrados ${Array.isArray(parsed) ? parsed.length : 'no-array'}). Se ha creado una copia de seguridad.`,
       raw,
       backupKey
     );
@@ -817,8 +818,8 @@ export function importBackupJSON(jsonString: string): Team[] {
     throw new InvalidBackupError('El archivo no contiene la matriz de equipos requerida.');
   }
 
-  if (data.teams.length !== 50) {
-    throw new InvalidBackupError(`El respaldo debe contener exactamente 50 equipos (encontrados: ${data.teams.length}).`);
+  if (data.teams.length < 1 || data.teams.length > 50) {
+    throw new InvalidBackupError(`El respaldo debe contener entre 1 y 50 equipos (encontrados: ${data.teams.length}).`);
   }
 
   const seenIds = new Set<number>();

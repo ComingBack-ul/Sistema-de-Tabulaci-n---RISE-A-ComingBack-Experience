@@ -31,7 +31,7 @@ import { Navbar } from './components/Navbar';
 import { LoginScreen } from './components/LoginScreen';
 import { JudgeDashboard } from './components/JudgeDashboard';
 import { JudgeModule } from './components/JudgeModule';
-import { AdminLiveTab } from './components/AdminLiveTab';
+import { AdminPanel } from './components/admin/AdminPanel';
 import { AuditoriumProjection } from './components/AuditoriumProjection';
 import { DataManagementModal } from './components/DataManagementModal';
 import { TeamDetailModal } from './components/TeamDetailModal';
@@ -429,13 +429,16 @@ export default function App() {
           /* Admin Role Views */
           <>
             {currentView === 'admin' && (
-              <AdminLiveTab
-                teams={teams}
-                onSelectTeamDetail={(team) => setSelectedTeamDetail(team)}
-                onExportCSV={() => exportToCSV(teams)}
-                onOpenJudgeForTeam={handleOpenJudgeForTeam}
-                onResetDatabase={handleResetDatabase}
-              />
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
+                <AdminPanel
+                  teams={teams}
+                  currentUser={currentUser}
+                  onTeamsUpdated={(newTeams) => setTeams(newTeams)}
+                  onSelectTeamDetail={(team) => setSelectedTeamDetail(team)}
+                  onExportCSV={() => exportToCSV(teams)}
+                  onOpenJudgeForTeam={handleOpenJudgeForTeam}
+                />
+              </div>
             )}
 
             {currentView === 'judge' && (

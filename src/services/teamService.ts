@@ -165,7 +165,7 @@ export function updateTeam(
   const targetId = dto.id !== undefined ? dto.id : existingTeam.id;
   if (targetId !== existingTeam.id) {
     if (typeof targetId !== 'number' || !Number.isInteger(targetId) || targetId < 1 || targetId > 50) {
-      return { valid: false, error: 'El nuevo ID del equipo debe estar entre 1 y 50.' };
+      return { success: false, error: 'El nuevo ID del equipo debe estar entre 1 y 50.' };
     }
 
     if (hasTeamEvaluationHistory(existingTeam)) {

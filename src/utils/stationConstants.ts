@@ -93,3 +93,6 @@ export function getStationDefinition(stationKey: StationKey): StationDefinition 
 export function getAllStationDefinitions(): StationDefinition[] {
   return ALL_STATION_KEYS.map((k) => STATION_DEFINITIONS[k]);
 }
+
+export const STATION_SPECS: StationDefinition[] = getAllStationDefinitions();
+

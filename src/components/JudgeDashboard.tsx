@@ -522,7 +522,7 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
                 </p>
                 <div className="mt-6 inline-flex items-center gap-2 bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl text-xs font-bold text-slate-700">
                   <span>Progreso Sala F:</span>
-                  <span className="text-[#991B1B] font-mono font-black">50/50 Equipos (100%)</span>
+                  <span className="text-[#991B1B] font-mono font-black">18/18 Equipos (100%)</span>
                 </div>
               </div>
             ) : isCrisisSubmittedByMe ? (

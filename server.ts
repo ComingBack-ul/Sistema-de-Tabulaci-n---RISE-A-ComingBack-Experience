@@ -131,6 +131,7 @@ app.get('/api/participant-assignment/:teamId/:rotationId', (req, res) => {
     
     // Legacy support removal
     if (assignment.oratory) delete assignment.oratory.keyword;
+    if (assignment.keywordChallenge) delete assignment.keywordChallenge.keyword;
 
     res.json(assignment);
   } else {

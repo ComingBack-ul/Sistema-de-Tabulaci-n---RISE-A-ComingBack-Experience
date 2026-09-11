@@ -353,7 +353,7 @@ export function loadTeamsFromStorage(): Team[] {
     );
   }
 
-  if (!Array.isArray(parsed) || parsed.length === 0 || parsed.length > 50) {
+  if (!Array.isArray(parsed) || parsed.length === 0 || parsed.length > 18) {
     const backupKey = `coming_back_corrupted_backup_${Date.now()}`;
     try {
       localStorage.setItem(backupKey, raw);
@@ -552,97 +552,7 @@ export function appendAuditLog(entry: Omit<AuditLogEntry, 'id' | 'timestamp'>): 
  * Generate Demo Data across all 8 judges:
  * Populates realistic scores for each judge account.
  */
-export function generateDemoData(): Team[] {
-  const teams = getInitialTeams();
-  const debateJudges: ('juez_sala_b' | 'juez_sala_c' | 'juez_sala_d' | 'juez_sala_e')[] = [
-    'juez_sala_b',
-    'juez_sala_c',
-    'juez_sala_d',
-    'juez_sala_e',
-  ];
 
-  teams.forEach((team, idx) => {
-    // 1. Sala A (Oratoria: 0-25)
-    const ptsA1 = Math.floor(Math.random() * 11) + 14; // 14-24
-    const ptsA2 = Math.floor(Math.random() * 11) + 14; // 14-24
-    const solvedA1 = Math.random() > 0.35;
-    const solvedA2 = solvedA1 || Math.random() > 0.4;
-
-    // 2. Sala Debate: assign 1 of the 4 debate rooms (B, C, D, E)
-    const chosenDebateJudge = debateJudges[idx % debateJudges.length];
-    const stationLetter = chosenDebateJudge.replace('juez_sala_', '') as 'b' | 'c' | 'd' | 'e';
-    const ptsDebate = Math.floor(Math.random() * 21) + 29; // 29-49
-    const codeDelivered = Math.random() > 0.35;
-
-    // 3. Sala F (Crisis: 0-25)
-    const ptsF1 = Math.floor(Math.random() * 11) + 14; // 14-24
-    const ptsF2 = Math.floor(Math.random() * 11) + 14; // 14-24
-    const stampF1 = Math.random() > 0.3;
-    const stampF2 = stampF1 || Math.random() > 0.4;
-
-    const nowIso = new Date().toISOString();
-
-    team.judgeEvaluations = {
-      juez_sala_a1: {
-        judgeUsername: 'juez_sala_a1',
-        stationKey: 'sala_a1',
-        points: ptsA1,
-        escapeChallenge: solvedA1,
-        notes: solvedA1 ? 'Palabra clave descifrada e integrada.' : 'Buen discurso, sin palabra clave.',
-        timestamp: nowIso,
-        isSubmitted: true,
-      },
-      juez_sala_a2: {
-        judgeUsername: 'juez_sala_a2',
-        stationKey: 'sala_a2',
-        points: ptsA2,
-        escapeChallenge: solvedA2,
-        notes: solvedA2 ? 'Elocuencia y dominio del tiempo.' : 'Estructura sólida.',
-        timestamp: nowIso,
-        isSubmitted: true,
-      },
-      [chosenDebateJudge]: {
-        judgeUsername: chosenDebateJudge,
-        stationKey: `sala_${stationLetter}` as StationKey,
-        points: ptsDebate,
-        escapeChallenge: codeDelivered,
-        notes: codeDelivered ? 'Debate de alto nivel con entrega de código.' : 'Gran refutación 1v1.',
-        timestamp: nowIso,
-        isSubmitted: true,
-      },
-      juez_sala_f1: {
-        judgeUsername: 'juez_sala_f1',
-        stationKey: 'sala_f1',
-        points: ptsF1,
-        escapeChallenge: stampF1,
-        notes: stampF1 ? 'Resolución de crisis con sello consular.' : 'Negociación estratégica.',
-        timestamp: nowIso,
-        isSubmitted: true,
-      },
-      juez_sala_f2: {
-        judgeUsername: 'juez_sala_f2',
-        stationKey: 'sala_f2',
-        points: ptsF2,
-        escapeChallenge: stampF2,
-        notes: stampF2 ? 'Sello físico aprobado.' : 'Buena diplomacia.',
-        timestamp: nowIso,
-        isSubmitted: true,
-      },
-    };
-
-    team.lastUpdated = nowIso;
-  });
-
-  const processed = computeRanksAndBreak(teams);
-  saveTeamsToStorage(processed);
-  appendAuditLog({
-    teamId: 0,
-    room: 'SISTEMA',
-    action: 'Carga de datos demo (8 Jueces / 50 Equipos)',
-    judgeName: 'Mesa Directiva',
-  });
-  return processed;
-}
 
 /**
  * Reset Database to clean state
@@ -822,7 +732,7 @@ export function importBackupJSON(jsonString: string): Team[] {
     throw new InvalidBackupError('El archivo no contiene la matriz de equipos requerida.');
   }
 
-  if (data.teams.length < 1 || data.teams.length > 50) {
+  if (data.teams.length < 1 || data.teams.length > 18) {
     throw new InvalidBackupError(`El respaldo debe contener entre 1 y 18 equipos (encontrados: ${data.teams.length}).`);
   }
 

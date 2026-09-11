@@ -200,7 +200,7 @@ export const AdminLiveTab: React.FC<AdminLiveTabProps> = ({
             <span className="text-2xl sm:text-3xl font-black text-emerald-700 font-mono">
               {stats.completedTeams}
             </span>
-            <span className="text-xs text-slate-500 font-medium">/ 50 equipos</span>
+            <span className="text-xs text-slate-500 font-medium">/ 18 equipos</span>
           </div>
           <p className="text-[11px] text-slate-500 mt-1">Con las 3 salas tabuladas</p>
         </div>
@@ -461,7 +461,7 @@ export const AdminLiveTab: React.FC<AdminLiveTabProps> = ({
           </div>
 
           <div className="text-xs text-slate-500 font-medium">
-            Mostrando <strong className="text-[#991B1B]">{displayTeams.length}</strong> de 50 equipos
+            Mostrando <strong className="text-[#991B1B]">{displayTeams.length}</strong> de 18 equipos
           </div>
         </div>
       </div>
@@ -748,10 +748,10 @@ export const AdminLiveTab: React.FC<AdminLiveTabProps> = ({
                     Esta acción ejecutará una <strong>limpieza completa e irreversible</strong> de todas las calificaciones ingresadas:
                   </p>
                   <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-red-800">
-                    <li>Todos los 50 equipos volverán a <strong>0.0 puntos acumulados</strong>.</li>
+                    <li>Todos los 18 equipos volverán a <strong>0.0 puntos acumulados</strong>.</li>
                     <li>Todos los 8 jueces volverán al estado <strong>"Pendiente de Calificar"</strong>.</li>
                     <li>Se borrarán notas, candados superados y registros de auditoría anteriores.</li>
-                    <li>Las <strong>credenciales de acceso</strong> y la <strong>lista de 50 equipos</strong> se mantendrán 100% intactas.</li>
+                    <li>Las <strong>credenciales de acceso</strong> y la <strong>lista de 18 equipos</strong> se mantendrán 100% intactas.</li>
                   </ul>
                 </div>
               </div>

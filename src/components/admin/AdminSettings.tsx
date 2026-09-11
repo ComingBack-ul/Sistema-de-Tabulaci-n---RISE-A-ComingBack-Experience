@@ -16,7 +16,6 @@ import {
 import { Team, AuditLogEntry, AuthUser } from '../../types';
 import { 
   exportToCSV, 
-  generateDemoData, 
   resetDatabase, 
   exportBackupJSON, 
   importBackupJSON, 
@@ -84,12 +83,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
     e.target.value = '';
   };
 
-  const handleLoadDemo = () => {
-    const newTeams = generateDemoData();
-    onDataUpdated(newTeams);
-    setFeedbackMsg({ text: 'Datos de prueba y puntuaciones de simulación cargados con éxito.', type: 'success' });
-  };
-
+  
   const handleConfirmReset = () => {
     if (resetCodeInput !== 'REINICIAR') {
       setFeedbackMsg({ text: 'Debe escribir exactamente la palabra "REINICIAR" para confirmar.', type: 'error' });
@@ -215,19 +209,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({
           </div>
 
           <div className="space-y-3">
-            <div className="p-3.5 bg-amber-50/60 rounded-lg border border-amber-200 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-bold text-amber-900">Cargar Datos de Demostración</p>
-                <p className="text-[11px] text-amber-700">Llena los 50 equipos con puntuaciones para ensayos</p>
-              </div>
-              <button
-                onClick={handleLoadDemo}
-                className="px-3 py-1.5 bg-amber-600 text-white hover:bg-amber-700 text-xs font-semibold rounded-md shadow-xs flex items-center gap-1.5 transition"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                Cargar Demo
-              </button>
-            </div>
+            
 
             {/* Reset Database */}
             <div className="p-3.5 bg-red-50/60 rounded-lg border border-red-200 space-y-2">

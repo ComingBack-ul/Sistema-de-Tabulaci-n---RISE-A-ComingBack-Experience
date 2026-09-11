@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { 
   exportToCSV, 
-  generateDemoData, 
   resetDatabase, 
   exportBackupJSON, 
   importBackupJSON, 
@@ -60,12 +59,7 @@ export const DataManagementModal: React.FC<DataManagementModalProps> = ({
     }
   };
 
-  const handleLoadDemo = () => {
-    const newTeams = generateDemoData();
-    onDataUpdated(newTeams);
-    setFeedbackMsg({ text: '¡Datos de prueba cargados con éxito (50 equipos)!', type: 'success' });
-  };
-
+  
   const handleBackupDownload = () => {
     try {
       exportBackupJSON(teams);
@@ -201,25 +195,7 @@ export const DataManagementModal: React.FC<DataManagementModalProps> = ({
               </div>
 
               {/* Action 2: Load Demo Data */}
-              <div className="bg-amber-50/70 p-4 rounded-xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <h4 className="font-extrabold text-sm text-amber-950 flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-amber-600" />
-                    Cargar Datos de Prueba (Demo Data)
-                  </h4>
-                  <p className="text-xs text-amber-800 mt-0.5">
-                    Rellena las 3 salas de los 50 equipos con puntuaciones realistas para probar el Live Tab y la proyección.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  id="modal-btn-load-demo"
-                  onClick={handleLoadDemo}
-                  className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-4 py-2.5 rounded-lg shadow-xs transition-colors shrink-0 cursor-pointer"
-                >
-                  Cargar Demo
-                </button>
-              </div>
+              
 
               {/* Action 3: Backup & Restore JSON */}
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">

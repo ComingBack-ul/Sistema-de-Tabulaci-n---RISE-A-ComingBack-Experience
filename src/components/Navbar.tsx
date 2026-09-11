@@ -1,18 +1,23 @@
 import React from 'react';
-import { ViewMode, AuthUser } from '../types';
+import { ViewMode, AuthUser, AdminTab } from '../types';
 import { 
   ClipboardCheck, 
-  Trophy, 
   Tv, 
   Settings, 
   ShieldCheck, 
   LogOut, 
-  User
+  User,
+  Activity,
+  Users,
+  UserCheck,
+  Sliders
 } from 'lucide-react';
 
 interface NavbarProps {
   currentView: ViewMode;
   onSelectView: (view: ViewMode) => void;
+  adminTab?: AdminTab;
+  onSelectAdminTab?: (tab: AdminTab) => void;
   isOnline: boolean;
   onOpenDataModal: () => void;
   totalEvaluated: number;
@@ -23,12 +28,21 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   currentView,
   onSelectView,
+  adminTab = 'live',
+  onSelectAdminTab,
   onOpenDataModal,
   totalEvaluated,
   currentUser,
   onLogout
 }) => {
   const isAdmin = currentUser?.role === 'admin';
+
+  const handleAdminNavClick = (tab: AdminTab) => {
+    if (onSelectAdminTab) {
+      onSelectAdminTab(tab);
+    }
+    onSelectView('admin');
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-[#991B1B] text-white shadow-md border-b border-[#7F1D1D] font-['Plus_Jakarta_Sans']">
@@ -65,45 +79,92 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Admin Navigation Tabs */}
           {isAdmin && (
-            <nav className="flex items-center gap-1 sm:gap-1.5 bg-[#7F1D1D]/70 p-1 rounded-xl border border-red-700/60 shadow-inner">
+            <nav className="flex items-center gap-1 sm:gap-1.5 bg-[#7F1D1D]/70 p-1 rounded-xl border border-red-700/60 shadow-inner flex-wrap">
+              {/* 1. Live */}
               <button
-                id="nav-btn-admin"
-                onClick={() => onSelectView('admin')}
+                id="nav-btn-admin-live"
+                onClick={() => handleAdminNavClick('live')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                  currentView === 'admin'
+                  currentView === 'admin' && adminTab === 'live'
                     ? 'bg-white text-[#991B1B] shadow-sm font-black'
                     : 'text-red-100 hover:bg-[#991B1B]/80 hover:text-white'
                 }`}
               >
-                <Trophy className="w-4 h-4 text-amber-500" />
-                <span>Live Tab Central</span>
+                <Activity className="w-4 h-4 text-amber-500" />
+                <span>Live</span>
               </button>
 
+              {/* 2. Equipos */}
+              <button
+                id="nav-btn-admin-teams"
+                onClick={() => handleAdminNavClick('teams')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  currentView === 'admin' && adminTab === 'teams'
+                    ? 'bg-white text-[#991B1B] shadow-sm font-black'
+                    : 'text-red-100 hover:bg-[#991B1B]/80 hover:text-white'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span>Equipos</span>
+              </button>
+
+              {/* 3. Usuarios */}
+              <button
+                id="nav-btn-admin-users"
+                onClick={() => handleAdminNavClick('users')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  currentView === 'admin' && adminTab === 'users'
+                    ? 'bg-white text-[#991B1B] shadow-sm font-black'
+                    : 'text-red-100 hover:bg-[#991B1B]/80 hover:text-white'
+                }`}
+              >
+                <UserCheck className="w-4 h-4" />
+                <span>Usuarios</span>
+              </button>
+
+              {/* 4. Configuración */}
+              <button
+                id="nav-btn-admin-settings"
+                onClick={() => handleAdminNavClick('settings')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  currentView === 'admin' && adminTab === 'settings'
+                    ? 'bg-white text-[#991B1B] shadow-sm font-black'
+                    : 'text-red-100 hover:bg-[#991B1B]/80 hover:text-white'
+                }`}
+              >
+                <Sliders className="w-4 h-4" />
+                <span>Configuración</span>
+              </button>
+
+              <div className="w-[1px] h-5 bg-white/20 mx-0.5 hidden md:block" />
+
+              {/* Auxiliary views */}
               <button
                 id="nav-btn-judge"
                 onClick={() => onSelectView('judge')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                title="Consola de Jueces para pruebas o re-calificación"
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   currentView === 'judge'
                     ? 'bg-white text-[#991B1B] shadow-sm font-black'
                     : 'text-red-100 hover:bg-[#991B1B]/80 hover:text-white'
                 }`}
               >
-                <ClipboardCheck className="w-4 h-4" />
-                <span>Consola Jueces</span>
+                <ClipboardCheck className="w-3.5 h-3.5" />
+                <span className="hidden lg:inline">Consola Jueces</span>
               </button>
 
               <button
                 id="nav-btn-projection"
                 onClick={() => onSelectView('projection')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                title="Proyección en auditorio para Break"
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   currentView === 'projection'
                     ? 'bg-white text-[#991B1B] shadow-sm font-black ring-2 ring-[#FCD34D]'
                     : 'text-red-100 hover:bg-[#991B1B]/80 hover:text-white'
                 }`}
               >
-                <Tv className="w-4 h-4 text-amber-400" />
-                <span className="hidden sm:inline">Pantalla Break (2:25 PM)</span>
-                <span className="sm:hidden">Break</span>
+                <Tv className="w-3.5 h-3.5 text-amber-400" />
+                <span>Break</span>
               </button>
 
               <button
@@ -112,8 +173,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 title="Mesa Directiva (Exportar CSV, Demo, Reiniciar)"
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-red-200 hover:bg-white/20 hover:text-white transition-colors cursor-pointer"
               >
-                <Settings className="w-4 h-4" />
-                <span className="hidden md:inline">Opciones</span>
+                <Settings className="w-3.5 h-3.5" />
+                <span className="hidden xl:inline">Opciones</span>
               </button>
             </nav>
           )}

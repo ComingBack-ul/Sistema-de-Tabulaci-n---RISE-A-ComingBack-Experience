@@ -182,57 +182,33 @@ export function validateAuthUser(data: unknown): AuthUser | null {
     const managedUsers = loadUsers();
     const managed = managedUsers.find((u) => u.username.toLowerCase() === cleanUsername);
 
-    if (managed) {
-      // Inactive users cannot have valid sessions
-      if (managed.status === 'inactive') {
-        return null;
-      }
-      if (user.role !== managed.role) {
-        return null;
-      }
-      return toAuthUser(managed);
+    if (!managed) {
+      // User does not exist or was deleted -> invalidate session
+      return null;
     }
+
+    // Inactive users cannot have valid sessions
+    if (managed.status === 'inactive') {
+      return null;
+    }
+
+    // Role must match
+    if (user.role !== managed.role) {
+      return null;
+    }
+
+    // If judge, stationKey must be a valid station
+    if (managed.role === 'judge') {
+      if (!managed.stationKey || !isValidStationKey(managed.stationKey)) {
+        return null;
+      }
+    }
+
+    return toAuthUser(managed);
   } catch (err) {
     console.warn('Error loading managed users for session validation:', err);
-  }
-
-  // Fallback to PRESET_ACCOUNTS for backward compatibility
-  const presetAccount = PRESET_ACCOUNTS[cleanUsername];
-  if (!presetAccount) {
     return null;
   }
-
-  const expected = presetAccount.user;
-
-  if (user.role !== expected.role || user.name !== expected.name) {
-    return null;
-  }
-
-  if (expected.role === 'admin') {
-    return {
-      username: expected.username,
-      role: 'admin',
-      name: expected.name,
-      status: 'active',
-    };
-  }
-
-  if (expected.role === 'judge') {
-    return {
-      username: expected.username,
-      role: 'judge',
-      name: expected.name,
-      status: 'active',
-      stationKey: expected.stationKey,
-      stationName: expected.stationName,
-      stationType: expected.stationType,
-      maxPoints: expected.maxPoints,
-      challengeName: expected.challengeName,
-      challengeDescription: expected.challengeDescription,
-    };
-  }
-
-  return null;
 }
 
 /**
@@ -248,7 +224,7 @@ function normalizeName(str: string): string {
 
 /**
  * Finds a configured user account by evaluator username or official name.
- * Searches authoritative managed users first, with fallback to presets.
+ * Searches authoritative managed users from userService.
  */
 export function findAccountByLoginName(inputName: string): UserAccount | null {
   const cleanInput = inputName.trim();
@@ -284,8 +260,14 @@ export function findAccountByLoginName(inputName: string): UserAccount | null {
     }
 
     // 3. Match admin alias
-    if (normalizedInput === 'admin_tab' || normalizedInput === 'admintab' || normalizedInput === 'admin') {
-      const admin = managedUsers.find((u) => u.role === 'admin' && u.status === 'active');
+    if (
+      normalizedInput === 'admin_tab' || 
+      normalizedInput === 'admintab' || 
+      normalizedInput === 'admin' ||
+      normalizedInput === 'administrador'
+    ) {
+      const admin = managedUsers.find((u) => u.role === 'admin' && u.status === 'active') ||
+                    managedUsers.find((u) => u.role === 'admin');
       if (admin) {
         return {
           loginName: admin.name,
@@ -298,31 +280,6 @@ export function findAccountByLoginName(inputName: string): UserAccount | null {
     }
   } catch (err) {
     console.warn('Error querying managed users:', err);
-  }
-
-  // Fallback to PRESET_ACCOUNTS
-  for (const account of Object.values(PRESET_ACCOUNTS)) {
-    const normalizedLoginName = normalizeName(account.loginName);
-    const normalizedUserName = normalizeName(account.user.name);
-    const normalizedUsername = normalizeName(account.user.username);
-
-    if (
-      normalizedInput === normalizedLoginName || 
-      normalizedInput === normalizedUserName || 
-      normalizedInput === normalizedUsername
-    ) {
-      return {
-        ...account,
-        status: 'active',
-      };
-    }
-  }
-
-  if (normalizedInput === 'admin_tab' || normalizedInput === 'admintab') {
-    return {
-      ...PRESET_ACCOUNTS.admin_tab,
-      status: 'active',
-    };
   }
 
   return null;

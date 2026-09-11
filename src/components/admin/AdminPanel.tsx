@@ -24,6 +24,8 @@ interface AdminPanelProps {
   onOpenJudgeForTeam: (teamId: number) => void;
   onExportCSV: () => void;
   initialTab?: AdminTab;
+  activeTab?: AdminTab;
+  onTabChange?: (tab: AdminTab) => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -34,8 +36,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onOpenJudgeForTeam,
   onExportCSV,
   initialTab = 'live',
+  activeTab,
+  onTabChange,
 }) => {
-  const [activeTab, setActiveTab] = useState<AdminTab>(initialTab);
+  const [internalTab, setInternalTab] = useState<AdminTab>(initialTab);
+  const currentTab = activeTab !== undefined ? activeTab : internalTab;
+
+  const handleTabSelect = (tab: AdminTab) => {
+    if (onTabChange) {
+      onTabChange(tab);
+    }
+    setInternalTab(tab);
+  };
 
   const activeTeamsCount = teams.filter((t) => t.status !== 'inactive').length;
   const inactiveTeamsCount = teams.filter((t) => t.status === 'inactive').length;
@@ -81,9 +93,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* Admin Tab Navigation Bar */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-1.5 flex flex-wrap gap-1.5">
         <button
-          onClick={() => setActiveTab('live')}
-          className={`flex-1 min-w-[130px] px-4 py-2.5 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition ${
-            activeTab === 'live'
+          onClick={() => handleTabSelect('live')}
+          className={`flex-1 min-w-[130px] px-4 py-2.5 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
+            currentTab === 'live'
               ? 'bg-red-800 text-white shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
@@ -93,9 +105,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('teams')}
-          className={`flex-1 min-w-[130px] px-4 py-2.5 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition ${
-            activeTab === 'teams'
+          onClick={() => handleTabSelect('teams')}
+          className={`flex-1 min-w-[130px] px-4 py-2.5 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
+            currentTab === 'teams'
               ? 'bg-red-800 text-white shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
@@ -104,7 +116,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           <span>Equipos</span>
           <span
             className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-              activeTab === 'teams' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+              currentTab === 'teams' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
             }`}
           >
             {teams.length}
@@ -112,9 +124,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('users')}
-          className={`flex-1 min-w-[130px] px-4 py-2.5 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition ${
-            activeTab === 'users'
+          onClick={() => handleTabSelect('users')}
+          className={`flex-1 min-w-[130px] px-4 py-2.5 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
+            currentTab === 'users'
               ? 'bg-red-800 text-white shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
@@ -124,9 +136,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('settings')}
-          className={`flex-1 min-w-[130px] px-4 py-2.5 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition ${
-            activeTab === 'settings'
+          onClick={() => handleTabSelect('settings')}
+          className={`flex-1 min-w-[130px] px-4 py-2.5 rounded-lg text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
+            currentTab === 'settings'
               ? 'bg-red-800 text-white shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
           }`}
@@ -138,7 +150,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
       {/* Tab Contents */}
       <div className="transition-all duration-200">
-        {activeTab === 'live' && (
+        {currentTab === 'live' && (
           <AdminLiveTab
             teams={teams}
             onSelectTeamDetail={onSelectTeamDetail}
@@ -147,7 +159,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           />
         )}
 
-        {activeTab === 'teams' && (
+        {currentTab === 'teams' && (
           <TeamsManagement
             teams={teams}
             currentUser={currentUser}
@@ -156,11 +168,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           />
         )}
 
-        {activeTab === 'users' && (
+        {currentTab === 'users' && (
           <UsersManagement currentUser={currentUser} />
         )}
 
-        {activeTab === 'settings' && (
+        {currentTab === 'settings' && (
           <AdminSettings
             teams={teams}
             currentUser={currentUser}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Team, ViewMode, RoomId, AuthUser, JudgeEvaluation } from './types';
+import { Team, ViewMode, RoomId, AuthUser, JudgeEvaluation, AdminTab } from './types';
 import { 
   loadTeamsFromStorage, 
   saveTeamsToStorage, 
@@ -47,6 +47,7 @@ export default function App() {
     }
   });
   const [currentView, setCurrentView] = useState<ViewMode>('admin');
+  const [adminTab, setAdminTab] = useState<AdminTab>('live');
   const [isOnline, setIsOnline] = useState<boolean>(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
   const [isDataModalOpen, setIsDataModalOpen] = useState<boolean>(false);
   const [selectedTeamDetail, setSelectedTeamDetail] = useState<Team | null>(null);
@@ -63,16 +64,28 @@ export default function App() {
       }
     });
 
+    const handleStorageAuthSync = () => {
+      const validStored = getStoredUser();
+      if (!validStored) {
+        clearStoredUser();
+        setCurrentUser(null);
+      } else {
+        setCurrentUser(validStored);
+      }
+    };
+
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    window.addEventListener('storage', handleStorageAuthSync);
 
     return () => {
       unsubscribe();
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('storage', handleStorageAuthSync);
     };
   }, []);
 
@@ -82,6 +95,7 @@ export default function App() {
     setCurrentUser(user);
     if (user.role === 'admin') {
       setCurrentView('admin');
+      setAdminTab('live');
     }
   };
 
@@ -394,6 +408,11 @@ export default function App() {
       <Navbar
         currentView={currentView}
         onSelectView={setCurrentView}
+        adminTab={adminTab}
+        onSelectAdminTab={(tab) => {
+          setAdminTab(tab);
+          setCurrentView('admin');
+        }}
         isOnline={isOnline}
         onOpenDataModal={() => setIsDataModalOpen(true)}
         totalEvaluated={totalEvaluatedCount}
@@ -437,6 +456,8 @@ export default function App() {
                   onSelectTeamDetail={(team) => setSelectedTeamDetail(team)}
                   onExportCSV={() => exportToCSV(teams)}
                   onOpenJudgeForTeam={handleOpenJudgeForTeam}
+                  activeTab={adminTab}
+                  onTabChange={setAdminTab}
                 />
               </div>
             )}

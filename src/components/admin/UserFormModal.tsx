@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, UserCheck, Shield, Award, AlertCircle, Eye, EyeOff, KeyRound } from 'lucide-react';
+import { X, UserCheck, Shield, Award, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { ManagedUser, CreateUserDto, UpdateUserDto, UserRole, UserStatus, StationKey } from '../../types';
 import { STATION_SPECS } from '../../utils/stationConstants';
 
@@ -310,7 +310,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
           )}
 
           {/* Password field - Only during creation */}
-          {!isEditing ? (
+          {!isEditing && (
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                 Contraseña de Acceso <span className="text-red-600">*</span>
@@ -336,13 +336,6 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
               <p className="text-[11px] text-slate-500 mt-1">
                 Clave inicial que el evaluador o directivo ingresará para autenticarse.
               </p>
-            </div>
-          ) : (
-            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 flex items-start gap-2">
-              <KeyRound className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <span>
-                La contraseña se administra de forma independiente. Para restablecer o cambiar la contraseña de <strong>@{userToEdit?.username}</strong>, utilice el botón con ícono de llave en la tabla de usuarios.
-              </span>
             </div>
           )}
 

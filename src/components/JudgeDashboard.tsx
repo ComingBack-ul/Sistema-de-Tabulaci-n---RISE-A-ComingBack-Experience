@@ -88,7 +88,7 @@ export const JudgeDashboard: React.FC<JudgeDashboardProps> = ({
     return getEvaluatedTeamsCount(teams, user);
   }, [teams, user]);
 
-  const progressPercent = totalAssigned === 0 ? 0 : Math.min(100, Math.max(0, Math.round((evaluatedCount / totalAssigned) * 100)));
+  const progressPercent = totalAssigned === 0 ? 0 : Math.round((evaluatedCount / totalAssigned) * 100);
 
   // Evaluation Form State - Automatically defaults to first available team (or current crisis team)
   const [selectedTeamId, setSelectedTeamId] = useState<number>(() => {

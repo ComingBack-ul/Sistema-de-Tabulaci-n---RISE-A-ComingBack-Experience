@@ -528,13 +528,31 @@ export function getAssignedTeams(teams: Team[], user: AuthUser | null | undefine
 }
 
 /**
- * Returns the total number of assigned teams for a judge.
- * - sala_a1: 26
- * - sala_a2: 24
- * - others: 50
+ * Returns the total number of assigned active teams for a judge.
+ * - sala_a1: Count of active teams where isTeamAssignedToStation(team.id, 'sala_a1')
+ * - sala_a2: Count of active teams where isTeamAssignedToStation(team.id, 'sala_a2')
+ * - others: Count of all active teams
+ * 
+ * Falls back to hardcoded numbers (26, 24, 50) if teams are not provided.
  */
-export function getTotalAssignedTeamsCount(user: AuthUser | null | undefined): number {
+export function getTotalAssignedTeamsCount(user: AuthUser | null | undefined, teams?: Team[]): number {
   if (!user) return 50;
+  
+  if (teams && Array.isArray(teams)) {
+    const activeTeams = teams.filter(t => t.status !== 'inactive');
+    
+    if (user.stationKey === 'sala_a1') {
+      return activeTeams.filter(t => isTeamAssignedToStation(t.id, 'sala_a1')).length;
+    }
+    
+    if (user.stationKey === 'sala_a2') {
+      return activeTeams.filter(t => isTeamAssignedToStation(t.id, 'sala_a2')).length;
+    }
+    
+    return activeTeams.length;
+  }
+
+  // Fallback
   if (user.stationKey === 'sala_a1') return 26;
   if (user.stationKey === 'sala_a2') return 24;
   return 50;
@@ -710,23 +728,25 @@ export function getNextAvailableTeam(
 export function getEvaluatedTeamsCount(teams: Team[], user: AuthUser | null | undefined): number {
   if (!Array.isArray(teams) || !user) return 0;
 
+  const activeTeams = teams.filter((t) => t.status !== 'inactive');
+
   if (user.stationKey === 'sala_f1' || user.stationKey === 'sala_f2' || user.stationType === 'crisis') {
-    return teams.filter((t) => isCrisisTeamFullyEvaluated(t)).length;
+    return activeTeams.filter((t) => isCrisisTeamFullyEvaluated(t)).length;
   }
 
   if (user.stationKey === 'sala_a1' || user.stationKey === 'sala_a2') {
-    return teams.filter(
+    return activeTeams.filter(
       (t) => isTeamAssignedToStation(t.id, user.stationKey) && !!t.judgeEvaluations?.[user.username]?.isSubmitted
     ).length;
   }
 
   if (user.stationType === 'debate') {
-    return teams.filter((t) => {
+    return activeTeams.filter((t) => {
       const evals = t.judgeEvaluations || {};
       return DEBATE_JUDGE_USERNAMES.some((u) => evals[u]?.isSubmitted);
     }).length;
   }
 
-  return teams.filter((t) => !!t.judgeEvaluations?.[user.username]?.isSubmitted).length;
+  return activeTeams.filter((t) => !!t.judgeEvaluations?.[user.username]?.isSubmitted).length;
 }
 

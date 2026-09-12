@@ -70,6 +70,23 @@ export interface ManagedUser {
   username: string;
   name: string;
   role: UserRole;
+  passwordHash?: string;
+  status: UserStatus;
+  stationKey?: StationKey;
+  stationName?: string;
+  stationType?: StationType;
+  maxPoints?: number;
+  challengeName?: string;
+  challengeDescription?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ServerUser {
+  id?: string;
+  username: string;
+  name: string;
+  role: Role;
   passwordHash: string;
   status: UserStatus;
   stationKey?: StationKey;
@@ -80,6 +97,15 @@ export interface ManagedUser {
   challengeDescription?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface JwtAuthPayload {
+  role: Role;
+  userId?: string;
+  username?: string;
+  teamId?: number;
+  teamName?: string;
+  stationKey?: StationKey;
 }
 
 export interface CreateUserDto {

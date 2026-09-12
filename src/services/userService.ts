@@ -9,6 +9,7 @@ import {
 export type { ManagedUser, CreateUserDto, UpdateUserDto, UserStatus };
 import { STATION_DEFINITIONS, getStationDefinition } from '../utils/stationConstants';
 import { appendAuditLog } from '../utils/storage';
+import { api } from './apiClient';
 
 export const USERS_STORAGE_KEY = 'coming_back_aniversario_users_v1';
 
@@ -17,7 +18,6 @@ export const INITIAL_PRESET_USERS: ManagedUser[] = [
     username: 'juez_sala_a1',
     name: 'Samuel Jimenez',
     role: 'judge',
-    passwordHash: '12345678',
     status: 'active',
     stationKey: 'sala_a1',
     stationName: 'Sala A - Oratoria y Retórica (Mesa 1)',
@@ -31,7 +31,6 @@ export const INITIAL_PRESET_USERS: ManagedUser[] = [
     username: 'juez_sala_a2',
     name: 'Javier Perez',
     role: 'judge',
-    passwordHash: '12345678',
     status: 'active',
     stationKey: 'sala_a2',
     stationName: 'Sala A - Oratoria y Retórica (Mesa 2)',
@@ -45,7 +44,6 @@ export const INITIAL_PRESET_USERS: ManagedUser[] = [
     username: 'juez_sala_b',
     name: 'José Ramón',
     role: 'judge',
-    passwordHash: '12345678',
     status: 'active',
     stationKey: 'sala_b',
     stationName: 'Sala B - Debate World Schools',
@@ -59,7 +57,6 @@ export const INITIAL_PRESET_USERS: ManagedUser[] = [
     username: 'juez_sala_c',
     name: 'Juan Luis',
     role: 'judge',
-    passwordHash: '12345678',
     status: 'active',
     stationKey: 'sala_c',
     stationName: 'Sala C - Debate World Schools',
@@ -73,7 +70,6 @@ export const INITIAL_PRESET_USERS: ManagedUser[] = [
     username: 'juez_sala_d',
     name: 'José Tejera',
     role: 'judge',
-    passwordHash: '12345678',
     status: 'active',
     stationKey: 'sala_d',
     stationName: 'Sala D - Debate World Schools',
@@ -87,7 +83,6 @@ export const INITIAL_PRESET_USERS: ManagedUser[] = [
     username: 'juez_sala_e',
     name: 'Manuel Koolman',
     role: 'judge',
-    passwordHash: '12345678',
     status: 'active',
     stationKey: 'sala_e',
     stationName: 'Sala E - Debate World Schools',
@@ -101,7 +96,6 @@ export const INITIAL_PRESET_USERS: ManagedUser[] = [
     username: 'juez_sala_f1',
     name: 'Jesus Corona',
     role: 'judge',
-    passwordHash: '12345678',
     status: 'active',
     stationKey: 'sala_f1',
     stationName: 'Sala F - Resolución de Crisis & Diplomacia (Mesa 1)',
@@ -115,7 +109,6 @@ export const INITIAL_PRESET_USERS: ManagedUser[] = [
     username: 'juez_sala_f2',
     name: 'Luis Montoya',
     role: 'judge',
-    passwordHash: '12345678',
     status: 'active',
     stationKey: 'sala_f2',
     stationName: 'Sala F - Resolución de Crisis & Diplomacia (Mesa 2)',
@@ -129,7 +122,13 @@ export const INITIAL_PRESET_USERS: ManagedUser[] = [
     username: 'admin_tab',
     name: 'Admin Tabulación & Mesa Directiva',
     role: 'admin',
-    passwordHash: '12345678',
+    status: 'active',
+    createdAt: '2026-09-01T08:00:00.000Z',
+  },
+  {
+    username: 'operador_general',
+    name: 'Operador de Logística y Salas',
+    role: 'operator',
     status: 'active',
     createdAt: '2026-09-01T08:00:00.000Z',
   },
@@ -216,6 +215,10 @@ export function loadUsers(): ManagedUser[] {
         hasChanges = true;
       }
 
+      // Security hardening: strip any legacy plaintext passwords or hashes from client memory
+      delete (item as any).passwordHash;
+      delete (item as any).password;
+
       mergedUsers.push(item as ManagedUser);
     }
 
@@ -241,15 +244,36 @@ export function loadUsers(): ManagedUser[] {
 }
 
 /**
- * Saves users to storage and dispatches a storage event for cross-component sync.
+ * Saves sanitized users to storage and dispatches a storage event for cross-component sync.
+ * Never writes passwords or password hashes to storage.
  */
 export function saveUsers(users: ManagedUser[]): void {
   if (typeof window === 'undefined' || !window.localStorage) return;
   try {
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    const sanitized = users.map((u) => {
+      const copy = { ...u };
+      delete copy.passwordHash;
+      delete (copy as any).password;
+      return copy;
+    });
+    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(sanitized));
   } catch (e) {
     console.error('Error saving users to storage:', e);
   }
+}
+
+/**
+ * Synchronizes client user state with server authoritative endpoint GET /api/admin/users.
+ */
+export async function syncUsersWithServer(): Promise<ManagedUser[]> {
+  try {
+    const serverUsers = await api.get<ManagedUser[]>('/api/admin/users');
+    if (Array.isArray(serverUsers) && serverUsers.length > 0) {
+      saveUsers(serverUsers);
+      return serverUsers;
+    }
+  } catch {}
+  return loadUsers();
 }
 
 /**
@@ -415,7 +439,6 @@ export function createUser(
     username: cleanUsername,
     name: dto.name.trim(),
     role: dto.role,
-    passwordHash: dto.password.trim(),
     status: dto.status || 'active',
     stationKey: dto.role === 'judge' ? dto.stationKey : undefined,
     stationName: stationDef?.name,
@@ -429,6 +452,13 @@ export function createUser(
 
   const updatedUsers = [...users, newUser];
   saveUsers(updatedUsers);
+
+  // Sync to authoritative server endpoint with raw password for server-side bcrypt hashing
+  try {
+    api.post('/api/admin/users', [...users, { ...newUser, password: dto.password.trim() }]).catch((err) => {
+      console.warn('Server user sync error on create:', err);
+    });
+  } catch {}
 
   appendAuditLog({
     teamId: 0,
@@ -548,11 +578,22 @@ export function changeUserPassword(
 
   const updatedUsers = users.map((u) =>
     normalizeUsername(u.username) === normalizeUsername(username)
-      ? { ...u, passwordHash: newPassword.trim(), updatedAt: new Date().toISOString() }
+      ? { ...u, updatedAt: new Date().toISOString() }
       : u
   );
 
   saveUsers(updatedUsers);
+
+  // Sync password change to server where bcrypt handles the hashing
+  try {
+    api.post('/api/admin/users', users.map((u) =>
+      normalizeUsername(u.username) === normalizeUsername(username)
+        ? { ...u, password: newPassword.trim() }
+        : u
+    )).catch((err) => {
+      console.warn('Server password update sync error:', err);
+    });
+  } catch {}
 
   // Security requirement: Never write plaintext password into audit logs!
   appendAuditLog({
@@ -616,6 +657,12 @@ export function toggleUserStatus(
 
   saveUsers(updatedUsers);
 
+  try {
+    api.post('/api/admin/users', updatedUsers).catch((err) => {
+      console.warn('Server user toggle status sync error:', err);
+    });
+  } catch {}
+
   appendAuditLog({
     teamId: 0,
     room: 'Panel Administrativo',
@@ -656,6 +703,12 @@ export function deleteUser(
 
   const updatedUsers = users.filter((u) => normalizeUsername(u.username) !== normalizeUsername(username));
   saveUsers(updatedUsers);
+
+  try {
+    api.post('/api/admin/users', updatedUsers).catch((err) => {
+      console.warn('Server user delete sync error:', err);
+    });
+  } catch {}
 
   appendAuditLog({
     teamId: 0,

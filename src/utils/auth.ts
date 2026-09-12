@@ -17,11 +17,13 @@ export async function authenticate(
 }
 
 export async function authenticateParticipant(
-  teamNameOrId: string | number
+  teamName: string
 ): Promise<{ success: boolean; role?: string; teamId?: number; team?: any; error?: string }> {
   try {
-    const payload = typeof teamNameOrId === 'number' ? { teamId: teamNameOrId } : { teamName: teamNameOrId };
-    const res = await api.post<any>('/api/auth/login', payload);
+    if (typeof teamName !== 'string' || !teamName.trim()) {
+      return { success: false, error: 'El nombre del equipo es obligatorio.' };
+    }
+    const res = await api.post<any>('/api/auth/login', { teamName: teamName.trim() });
     if (res.success && res.role === 'participant') {
       const resolvedId = res.team?.id || res.teamId;
       return { success: true, role: 'participant', teamId: resolvedId, team: res.team };

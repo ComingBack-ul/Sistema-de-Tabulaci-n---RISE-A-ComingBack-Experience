@@ -5,7 +5,8 @@ import fs from 'fs';
 import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
 import bcrypt from 'bcryptjs';
-import { OFFICIAL_TEAMS_DATA, buildOfficialTeams } from './src/data/officialTeams';
+import { OFFICIAL_TEAMS_DATA, buildOfficialTeams, validateOfficialTeamsIntegrity } from './src/data/officialTeams';
+import { ServerUser, Team, JwtAuthPayload, Role, UserStatus } from './src/types';
 
 const app = express();
 const PORT = 3000;
@@ -87,18 +88,18 @@ let eventState = {
   }
 };
 
-let usersState: any[] = [];
-let teamsState: any[] = [];
+let usersState: ServerUser[] = [];
+let teamsState: Team[] = [];
 
-// Seed default preset users with bcrypt hash
-const DEFAULT_PASSWORD_HASH = bcrypt.hashSync('12345678', 10);
+// Fallback seed hash for fresh deployments without users.json
+const SEED_BCRYPT_HASH = '$2b$10$jONaDBt6LwZbieGTI3XJvOghJ919grFV1Eq9Xa65mJvAb8anChvmK';
 
-const INITIAL_USERS_SEED = [
+const INITIAL_USERS_SEED: ServerUser[] = [
   {
     username: 'juez_sala_a1',
     name: 'Samuel Jimenez',
     role: 'judge',
-    passwordHash: DEFAULT_PASSWORD_HASH,
+    passwordHash: SEED_BCRYPT_HASH,
     status: 'active',
     stationKey: 'sala_a1',
     stationName: 'Sala A - Oratoria y Retórica (Mesa 1)',
@@ -112,7 +113,7 @@ const INITIAL_USERS_SEED = [
     username: 'juez_sala_a2',
     name: 'Javier Perez',
     role: 'judge',
-    passwordHash: DEFAULT_PASSWORD_HASH,
+    passwordHash: SEED_BCRYPT_HASH,
     status: 'active',
     stationKey: 'sala_a2',
     stationName: 'Sala A - Oratoria y Retórica (Mesa 2)',
@@ -126,7 +127,7 @@ const INITIAL_USERS_SEED = [
     username: 'juez_sala_b',
     name: 'José Ramón',
     role: 'judge',
-    passwordHash: DEFAULT_PASSWORD_HASH,
+    passwordHash: SEED_BCRYPT_HASH,
     status: 'active',
     stationKey: 'sala_b',
     stationName: 'Sala B - Debate World Schools',
@@ -140,7 +141,7 @@ const INITIAL_USERS_SEED = [
     username: 'juez_sala_c',
     name: 'Juan Luis',
     role: 'judge',
-    passwordHash: DEFAULT_PASSWORD_HASH,
+    passwordHash: SEED_BCRYPT_HASH,
     status: 'active',
     stationKey: 'sala_c',
     stationName: 'Sala C - Debate World Schools',
@@ -154,7 +155,7 @@ const INITIAL_USERS_SEED = [
     username: 'juez_sala_d',
     name: 'José Tejera',
     role: 'judge',
-    passwordHash: DEFAULT_PASSWORD_HASH,
+    passwordHash: SEED_BCRYPT_HASH,
     status: 'active',
     stationKey: 'sala_d',
     stationName: 'Sala D - Debate World Schools',
@@ -168,7 +169,7 @@ const INITIAL_USERS_SEED = [
     username: 'juez_sala_e',
     name: 'Manuel Koolman',
     role: 'judge',
-    passwordHash: DEFAULT_PASSWORD_HASH,
+    passwordHash: SEED_BCRYPT_HASH,
     status: 'active',
     stationKey: 'sala_e',
     stationName: 'Sala E - Debate World Schools',
@@ -182,7 +183,7 @@ const INITIAL_USERS_SEED = [
     username: 'juez_sala_f1',
     name: 'Jesus Corona',
     role: 'judge',
-    passwordHash: DEFAULT_PASSWORD_HASH,
+    passwordHash: SEED_BCRYPT_HASH,
     status: 'active',
     stationKey: 'sala_f1',
     stationName: 'Sala F - Resolución de Crisis & Diplomacia (Mesa 1)',
@@ -196,7 +197,7 @@ const INITIAL_USERS_SEED = [
     username: 'juez_sala_f2',
     name: 'Luis Montoya',
     role: 'judge',
-    passwordHash: DEFAULT_PASSWORD_HASH,
+    passwordHash: SEED_BCRYPT_HASH,
     status: 'active',
     stationKey: 'sala_f2',
     stationName: 'Sala F - Resolución de Crisis & Diplomacia (Mesa 2)',
@@ -210,7 +211,7 @@ const INITIAL_USERS_SEED = [
     username: 'admin_tab',
     name: 'Admin Tabulación & Mesa Directiva',
     role: 'admin',
-    passwordHash: DEFAULT_PASSWORD_HASH,
+    passwordHash: SEED_BCRYPT_HASH,
     status: 'active',
     createdAt: '2026-09-01T08:00:00.000Z',
   },
@@ -218,7 +219,7 @@ const INITIAL_USERS_SEED = [
     username: 'operador_general',
     name: 'Operador de Logística y Salas',
     role: 'operator',
-    passwordHash: DEFAULT_PASSWORD_HASH,
+    passwordHash: SEED_BCRYPT_HASH,
     status: 'active',
     createdAt: '2026-09-01T08:00:00.000Z',
   }
@@ -301,18 +302,22 @@ function saveTeams() {
 loadState();
 
 // --- AUTH MIDDLEWARES ---
-const authenticateToken = (req: any, res: any, next: any) => {
+export interface AuthenticatedRequest extends express.Request {
+  user?: JwtAuthPayload;
+}
+
+const authenticateToken = (req: AuthenticatedRequest, res: express.Response, next: express.NextFunction) => {
   const token = req.cookies?.token || req.headers.authorization?.replace(/^Bearer\s+/i, '');
   if (!token) return res.status(401).json({ error: 'No autorizado. Sesión no encontrada.' });
   
   jwt.verify(token, JWT_SECRET, (err: any, decoded: any) => {
     if (err) return res.status(401).json({ error: 'Token inválido o sesión expirada' });
-    req.user = decoded;
+    req.user = decoded as JwtAuthPayload;
     next();
   });
 };
 
-const requireRole = (...roles: string[]) => (req: any, res: any, next: any) => {
+const requireRole = (...roles: Role[]) => (req: AuthenticatedRequest, res: express.Response, next: express.NextFunction) => {
   if (!req.user || !roles.includes(req.user.role)) {
     return res.status(403).json({ error: 'Acceso denegado: rol insuficiente' });
   }
@@ -320,7 +325,7 @@ const requireRole = (...roles: string[]) => (req: any, res: any, next: any) => {
 };
 
 const requireAdmin = requireRole('admin');
-const requireJudge = requireRole('judge', 'admin');
+const requireJudge = requireRole('judge');
 const requireParticipant = requireRole('participant');
 const requireOperator = requireRole('operator', 'admin');
 
@@ -338,29 +343,30 @@ app.get('/api/teams/catalog', (_req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   const { username, password, teamName, teamId } = req.body;
   
-  // 1. Participant Login: Match strictly against the official 18 teams
-  if (teamName || typeof teamId !== 'undefined') {
-    let matchedTeam = null;
-    
-    if (teamName) {
-      const normalizedQuery = String(teamName).trim().toLowerCase();
-      matchedTeam = teamsState.find(t => t.name.trim().toLowerCase() === normalizedQuery);
-      if (!matchedTeam) {
-        matchedTeam = OFFICIAL_TEAMS_DATA.find(t => t.name.trim().toLowerCase() === normalizedQuery);
-        if (matchedTeam) {
-          const found = teamsState.find(t => t.id === matchedTeam!.id);
-          matchedTeam = found || matchedTeam;
-        }
-      }
-    } else if (teamId) {
-      const id = parseInt(teamId, 10);
-      if (!isNaN(id) && id >= 1 && id <= 18) {
-        matchedTeam = teamsState.find(t => t.id === id);
+  // Guard: Reject direct numeric teamId login attempt (no teamId bypass allowed)
+  if (typeof teamId !== 'undefined' && !teamName) {
+    return res.status(400).json({ 
+      error: 'El login de participantes requiere el nombre oficial ("teamName"). No se permite el inicio de sesión directo por "teamId".' 
+    });
+  }
+
+  // 1. Participant Login: Match strictly against the official 18 teams by teamName only
+  if (teamName) {
+    if (typeof teamName !== 'string' || !teamName.trim()) {
+      return res.status(400).json({ error: 'El nombre del equipo es obligatorio y debe ser texto válido.' });
+    }
+
+    const normalizedQuery = teamName.trim().toLowerCase();
+    let matchedTeam = teamsState.find(t => t.name.trim().toLowerCase() === normalizedQuery);
+    if (!matchedTeam) {
+      const officialMatch = OFFICIAL_TEAMS_DATA.find(t => t.name.trim().toLowerCase() === normalizedQuery);
+      if (officialMatch) {
+        matchedTeam = teamsState.find(t => t.id === officialMatch.id);
       }
     }
 
     if (!matchedTeam) {
-      return res.status(400).json({ error: 'Equipo oficial no encontrado en el registro' });
+      return res.status(400).json({ error: 'Equipo oficial no encontrado en el registro.' });
     }
 
     if (matchedTeam.status === 'inactive') {
@@ -392,7 +398,7 @@ app.post('/api/auth/login', async (req, res) => {
       team: {
         id: matchedTeam.id,
         name: matchedTeam.name,
-        participants: matchedTeam.participants || matchedTeam.members || []
+        participants: matchedTeam.participants || (matchedTeam as any).members || []
       }
     });
   }
@@ -491,7 +497,7 @@ app.get('/api/auth/me', authenticateToken, (req: any, res) => {
 });
 
 // --- PARTICIPANT ENDPOINTS ---
-app.get('/api/participant/config', authenticateToken, (req, res) => {
+app.get('/api/participant/config', authenticateToken, requireParticipant, (_req, res) => {
   res.json({ currentRotation: eventState.currentRotation });
 });
 
@@ -505,9 +511,9 @@ app.get('/api/participant/content', authenticateToken, requireParticipant, (_req
 });
 
 // Secure participant assignment endpoint: teamId is determined server-authoritatively from the token
-app.get('/api/participant/assignment/:rotationId', authenticateToken, requireParticipant, (req: any, res) => {
+app.get('/api/participant/assignment/:rotationId', authenticateToken, requireParticipant, (req: AuthenticatedRequest, res) => {
   const { rotationId } = req.params;
-  const teamId = req.user.teamId;
+  const teamId = req.user?.teamId;
   const rotationData = eventState.assignments[rotationId as keyof typeof eventState.assignments];
   
   if (rotationData && rotationData.teamAssignments[teamId as any]) {
@@ -520,59 +526,17 @@ app.get('/api/participant/assignment/:rotationId', authenticateToken, requirePar
   }
 });
 
-// Legacy assignment endpoint with cross-team protection
-app.get('/api/participant-assignment/:teamId/:rotationId', authenticateToken, (req: any, res) => {
-  const { teamId, rotationId } = req.params;
-  const parsedId = parseInt(teamId, 10);
-
-  // Participants cannot inspect other teams' data
-  if (req.user.role === 'participant' && req.user.teamId !== parsedId) {
-    return res.status(403).json({ error: 'Acceso denegado: no puedes acceder a datos de otro equipo' });
-  }
-
-  const rotationData = eventState.assignments[rotationId as keyof typeof eventState.assignments];
-  if (rotationData && rotationData.teamAssignments[parsedId as any]) {
-    const assignment = JSON.parse(JSON.stringify(rotationData.teamAssignments[parsedId as any]));
-    if (assignment.oratory) delete assignment.oratory.keyword;
-    if (assignment.keywordChallenge) delete assignment.keywordChallenge.keyword;
-    res.json(assignment);
-  } else {
-    res.status(404).json({ error: 'Asignación no encontrada' });
-  }
-});
-
-app.get('/api/participant-config', (_req, res) => {
-  res.json({ currentRotation: eventState.currentRotation });
-});
-
-app.put('/api/participant-config', authenticateToken, requireAdmin, (req, res) => {
-  if (req.body.currentRotation) {
-    eventState.currentRotation = req.body.currentRotation;
-    saveState();
-  }
-  res.json({ success: true, currentRotation: eventState.currentRotation });
-});
-
-app.get('/api/participant-content', authenticateToken, requireParticipant, (_req, res) => {
-  const safeState = JSON.parse(JSON.stringify(eventState));
-  if (safeState.officialPool) {
-    if (safeState.officialPool.riddles) safeState.officialPool.riddles.forEach((r: any) => delete r.solution);
-    delete safeState.officialPool.rotationCodes;
-  }
-  res.json(safeState);
-});
-
 // --- JUDGE ENDPOINTS ---
-app.put('/api/judge/evaluation', authenticateToken, requireJudge, (req: any, res) => {
+app.put('/api/judge/evaluation', authenticateToken, requireJudge, (req: AuthenticatedRequest, res) => {
   const { teamId, evaluation } = req.body;
   const team = teamsState.find(t => t.id === teamId);
-  if (!team) return res.status(404).json({ error: 'Team not found' });
+  if (!team) return res.status(404).json({ error: 'Equipo no encontrado' });
   
   if (!team.judgeEvaluations) team.judgeEvaluations = {};
-  team.judgeEvaluations[req.user.username] = {
+  team.judgeEvaluations[req.user!.username!] = {
     ...evaluation,
-    judgeUsername: req.user.username,
-    stationKey: req.user.stationKey,
+    judgeUsername: req.user!.username!,
+    stationKey: req.user!.stationKey,
     timestamp: new Date().toISOString()
   };
   team.lastUpdated = new Date().toISOString();
@@ -596,42 +560,106 @@ app.get('/api/admin/users', authenticateToken, requireAdmin, (_req, res) => {
   res.json(usersState.map(sanitizeUser));
 });
 
-app.post('/api/admin/users', authenticateToken, requireAdmin, async (req, res) => {
+const VALID_ROLES = ['admin', 'judge', 'operator'] as const;
+const VALID_STATIONS = ['sala_a1', 'sala_a2', 'sala_b', 'sala_c', 'sala_d', 'sala_e', 'sala_f1', 'sala_f2'] as const;
+
+app.post('/api/admin/users', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res: express.Response) => {
   const incoming = req.body;
-  if (Array.isArray(incoming)) {
-    // Ensure all passwords are safe bcrypt hashes
-    const processed = await Promise.all(incoming.map(async (u: any) => {
-      const existing = usersState.find(old => old.username === u.username);
-      let hash = u.passwordHash;
-      if (u.password && !u.password.startsWith('$2')) {
-        hash = await bcrypt.hash(u.password, 10);
-      } else if (!hash && existing) {
-        hash = existing.passwordHash;
-      } else if (!hash) {
-        hash = DEFAULT_PASSWORD_HASH;
-      }
-      return {
-        ...u,
-        passwordHash: hash
-      };
-    }));
-    usersState = processed;
-    saveUsers();
-    return res.json({ success: true, count: usersState.length });
+  if (!Array.isArray(incoming) || incoming.length === 0) {
+    return res.status(400).json({ error: 'La carga de usuarios debe ser un arreglo no vacío.' });
   }
-  res.status(400).json({ error: 'Formato de usuarios no válido' });
+
+  const validatedUsers: ServerUser[] = [];
+
+  for (let i = 0; i < incoming.length; i++) {
+    const u = incoming[i];
+    if (!u || typeof u !== 'object') {
+      return res.status(400).json({ error: `Usuario en posición ${i} es inválido.` });
+    }
+
+    const username = String(u.username || '').trim().toLowerCase();
+    if (!username || username.length < 3 || username.length > 30 || /\s/.test(username)) {
+      return res.status(400).json({ 
+        error: `Usuario "${u.username || i}": el username debe contener entre 3 y 30 caracteres alfanuméricos sin espacios.` 
+      });
+    }
+
+    const name = String(u.name || '').trim();
+    if (!name || name.length < 2) {
+      return res.status(400).json({ error: `Usuario "${username}": nombre completo obligatorio.` });
+    }
+
+    if (!VALID_ROLES.includes(u.role)) {
+      return res.status(400).json({ 
+        error: `Usuario "${username}": rol "${u.role}" no permitido. Roles autorizados: ${VALID_ROLES.join(', ')}.` 
+      });
+    }
+
+    const status: UserStatus = u.status === 'inactive' ? 'inactive' : 'active';
+
+    if (u.role === 'judge') {
+      if (!u.stationKey || !VALID_STATIONS.includes(u.stationKey)) {
+        return res.status(400).json({ 
+          error: `Juez "${username}": stationKey inválida o no configurada.` 
+        });
+      }
+    }
+
+    const existing = usersState.find(old => old.username.toLowerCase() === username);
+    let passwordHash = existing ? existing.passwordHash : '';
+
+    // If a new plain password was provided, hash it with bcrypt
+    if (u.password && typeof u.password === 'string') {
+      const plain = u.password.trim();
+      if (plain.length < 4) {
+        return res.status(400).json({ error: `Usuario "${username}": la contraseña debe contener al menos 4 caracteres.` });
+      }
+      passwordHash = await bcrypt.hash(plain, 10);
+    } else if (!existing) {
+      return res.status(400).json({ 
+        error: `Usuario nuevo "${username}": debe proporcionarse una contraseña inicial válida (mínimo 4 caracteres).` 
+      });
+    }
+
+    validatedUsers.push({
+      id: u.id || existing?.id,
+      username,
+      name,
+      role: u.role,
+      status,
+      stationKey: u.stationKey,
+      stationName: u.stationName,
+      stationType: u.stationType,
+      maxPoints: u.maxPoints,
+      challengeName: u.challengeName,
+      challengeDescription: u.challengeDescription,
+      passwordHash,
+      createdAt: existing?.createdAt || u.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  // Guard: Ensure at least one active administrator remains
+  const activeAdmins = validatedUsers.filter(u => u.role === 'admin' && u.status === 'active');
+  if (activeAdmins.length === 0) {
+    return res.status(400).json({ error: 'Operación denegada: debe haber al menos un administrador activo en el sistema.' });
+  }
+
+  usersState = validatedUsers;
+  saveUsers();
+  return res.json({ success: true, count: usersState.length });
 });
 
-// --- TEAMS DATA ACCESS BY ROLE ---
-app.get('/api/teams', authenticateToken, (req: any, res: any) => {
+// --- TEAMS DATA ACCESS BY ROLE & CROSS-TEAM PROTECTION ---
+app.get('/api/teams', authenticateToken, (req: AuthenticatedRequest, res: express.Response) => {
   // Participants can only access safe details of their own team
-  if (req.user.role === 'participant') {
-    const myTeam = teamsState.find(t => t.id === req.user.teamId);
+  if (req.user?.role === 'participant') {
+    const myTeam = teamsState.find(t => t.id === req.user?.teamId);
     if (!myTeam) return res.status(404).json({ error: 'Equipo no encontrado' });
     return res.json([{
       id: myTeam.id,
       name: myTeam.name,
-      participants: myTeam.participants || myTeam.members || [],
+      participants: myTeam.participants || (myTeam as any).members || [],
       status: myTeam.status
     }]);
   }
@@ -640,15 +668,50 @@ app.get('/api/teams', authenticateToken, (req: any, res: any) => {
   res.json(teamsState);
 });
 
-app.post('/api/admin/teams', authenticateToken, requireAdmin, (req, res) => {
-  if (Array.isArray(req.body) && req.body.length === 18) {
-    teamsState = req.body;
-    saveTeams();
-    res.json({ success: true });
-  } else {
-    res.status(400).json({ error: 'La lista de equipos debe contener exactamente los 18 equipos oficiales.' });
+// Individual team details with cross-team protection
+app.get('/api/teams/:teamId', authenticateToken, (req: AuthenticatedRequest, res: express.Response) => {
+  const targetId = parseInt(req.params.teamId, 10);
+  if (isNaN(targetId)) {
+    return res.status(400).json({ error: 'ID de equipo inválido' });
   }
+
+  // Participants cannot inspect other teams' data
+  if (req.user?.role === 'participant') {
+    if (req.user.teamId !== targetId) {
+      return res.status(403).json({ error: 'Acceso denegado: no puedes acceder a la información de otro equipo.' });
+    }
+    const myTeam = teamsState.find(t => t.id === targetId);
+    if (!myTeam) return res.status(404).json({ error: 'Equipo no encontrado' });
+    return res.json({
+      id: myTeam.id,
+      name: myTeam.name,
+      participants: myTeam.participants || (myTeam as any).members || [],
+      status: myTeam.status
+    });
+  }
+
+  // Judges & Admins can access full team record
+  const team = teamsState.find(t => t.id === targetId);
+  if (!team) return res.status(404).json({ error: 'Equipo no encontrado' });
+  res.json(team);
 });
+
+app.post('/api/admin/teams', authenticateToken, requireAdmin, (req: AuthenticatedRequest, res: express.Response) => {
+  if (!Array.isArray(req.body)) {
+    return res.status(400).json({ error: 'La lista de equipos debe ser un arreglo.' });
+  }
+
+  const integrity = validateOfficialTeamsIntegrity(req.body);
+  if (!integrity.valid) {
+    return res.status(400).json({ error: `Validación de integridad oficial fallida: ${integrity.error}` });
+  }
+
+  teamsState = req.body as Team[];
+  saveTeams();
+  res.json({ success: true, count: teamsState.length });
+});
+
+export { app, usersState, teamsState, eventState };
 
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
@@ -669,4 +732,6 @@ async function startServer() {
   });
 }
 
-startServer();
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}

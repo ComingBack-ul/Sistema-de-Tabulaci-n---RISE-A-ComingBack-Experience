@@ -6,8 +6,8 @@ import {
   Team,
   OratoryOrganization,
   OratoryAssignment 
-  
 } from '../types';
+import { api } from './apiClient';
 
 const STORAGE_KEY_CONTENT = 'rise_participant_content_v1';
 const STORAGE_KEY_CONFIG = 'rise_event_config_v1';
@@ -15,20 +15,18 @@ const STORAGE_KEY_CONFIG = 'rise_event_config_v1';
 // Synchronize state with the shared Express server source of truth (Admin/Initialization use)
 export async function syncParticipantState(): Promise<void> {
   try {
-    const [configRes, contentRes] = await Promise.all([
-      fetch('/api/participant-config'),
-      fetch('/api/participant-content')
+    const [config, content] = await Promise.all([
+      api.get<{ currentRotation: RotationId }>('/api/participant/config'),
+      api.get<Record<RotationId, RotationAssignment>>('/api/participant/content')
     ]);
     
-    if (configRes.ok) {
-      const config = await configRes.json();
+    if (config?.currentRotation) {
       try {
         localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify({ currentRotation: config.currentRotation }));
       } catch (e) {}
     }
     
-    if (contentRes.ok) {
-      const content = await contentRes.json();
+    if (content) {
       saveAllParticipantContent(content);
     }
   } catch (error) {
@@ -60,9 +58,8 @@ export function saveAllParticipantContent(data: Record<RotationId, RotationAssig
 // ASYNC Config & Data Fetchers (Source of Truth = Server)
 export async function getCurrentRotationAsync(): Promise<RotationId> {
   try {
-    const res = await fetch('/api/participant-config');
-    if (res.ok) {
-      const data = await res.json();
+    const data = await api.get<{ currentRotation: RotationId }>('/api/participant/config');
+    if (data?.currentRotation) {
       const rot = data.currentRotation as RotationId;
       // Update cache
       localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify({ currentRotation: rot }));
@@ -75,8 +72,6 @@ export async function getCurrentRotationAsync(): Promise<RotationId> {
   // Fallback
   return getCurrentRotation();
 }
-
-import { api } from './apiClient';
 
 export async function getParticipantAssignmentAsync(team: Team, rotation: RotationId): Promise<ParticipantContent | null> {
   try {
@@ -102,22 +97,17 @@ export async function getSafeParticipantAssignmentAsync(team: Team, rotation: Ro
     delete safeContent.oratory.keyword;
   }
   
-  
-  
   return safeContent;
 }
 
 export async function setCurrentRotationAsync(rotation: RotationId): Promise<boolean> {
   try {
-    const res = await fetch('/api/participant-config', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ currentRotation: rotation })
+    const res = await api.put<{ success: boolean; eventState?: { currentRotation: string } }>('/api/admin/config', {
+      currentRotation: rotation
     });
     
-    if (res.ok) {
-      const data = await res.json();
-      localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify({ currentRotation: data.currentRotation }));
+    if (res?.success) {
+      localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify({ currentRotation: rotation }));
       return true;
     }
   } catch (error) {

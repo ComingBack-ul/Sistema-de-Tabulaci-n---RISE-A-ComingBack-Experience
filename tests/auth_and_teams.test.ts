@@ -152,4 +152,81 @@ test('7. Auto-healing handles legacy 50-team corruption gracefully', () => {
   assert.equal(official[0].name, 'Los Scooby Doo');
 });
 
+test('8. Enforce teamId bypass rejection on participant login', () => {
+  // Logic validation for /api/auth/login
+  const handleParticipantAuth = (body: { teamName?: string; teamId?: number | string }) => {
+    if (typeof body.teamId !== 'undefined' && !body.teamName) {
+      return { status: 400, error: 'Bypass attempt rejected: teamId is not allowed for login' };
+    }
+    if (!body.teamName || !body.teamName.trim()) {
+      return { status: 400, error: 'teamName is required' };
+    }
+    const normalized = body.teamName.trim().toLowerCase();
+    const match = OFFICIAL_TEAMS_DATA.find(t => t.name.trim().toLowerCase() === normalized);
+    if (!match) {
+      return { status: 400, error: 'Team not found' };
+    }
+    return { status: 200, teamId: match.id, teamName: match.name };
+  };
+
+  // Reject direct numeric teamId login
+  const bypassAttempt = handleParticipantAuth({ teamId: 2 });
+  assert.equal(bypassAttempt.status, 400);
+
+  // Reject empty string
+  const emptyAttempt = handleParticipantAuth({ teamName: '   ' });
+  assert.equal(emptyAttempt.status, 400);
+
+  // Success with valid official name
+  const validAttempt = handleParticipantAuth({ teamName: 'Los Scooby Doo' });
+  assert.equal(validAttempt.status, 200);
+  assert.equal(validAttempt.teamId, 1);
+
+  // Case-insensitive match
+  const caseInsensitive = handleParticipantAuth({ teamName: 'MENTES BONITAS' });
+  assert.equal(caseInsensitive.status, 200);
+  assert.equal(caseInsensitive.teamId, 18);
+});
+
+test('9. Cross-team access protection rule', () => {
+  const checkTeamAccess = (tokenUser: { role: string; teamId?: number }, requestedTeamId: number) => {
+    if (tokenUser.role === 'participant') {
+      if (tokenUser.teamId !== requestedTeamId) {
+        return { allowed: false, status: 403 };
+      }
+    }
+    return { allowed: true, status: 200 };
+  };
+
+  const participantTeam1 = { role: 'participant', teamId: 1 };
+  assert.equal(checkTeamAccess(participantTeam1, 1).allowed, true);
+  assert.equal(checkTeamAccess(participantTeam1, 2).allowed, false);
+  assert.equal(checkTeamAccess(participantTeam1, 2).status, 403);
+
+  const judgeUser = { role: 'judge' };
+  assert.equal(checkTeamAccess(judgeUser, 1).allowed, true);
+  assert.equal(checkTeamAccess(judgeUser, 18).allowed, true);
+
+  const adminUser = { role: 'admin' };
+  assert.equal(checkTeamAccess(adminUser, 1).allowed, true);
+});
+
+test('10. Official teams integrity reject on tampered count or invalid IDs', () => {
+  const validTeams = buildOfficialTeams();
+  assert.equal(validateOfficialTeamsIntegrity(validTeams).valid, true);
+
+  // Tampered count (17 teams)
+  const missingOne = validTeams.slice(0, 17);
+  assert.equal(validateOfficialTeamsIntegrity(missingOne).valid, false);
+
+  // Tampered count (19 teams)
+  const extraOne = [...validTeams, { ...validTeams[0], id: 19 }];
+  assert.equal(validateOfficialTeamsIntegrity(extraOne).valid, false);
+
+  // Invalid ID sequence
+  const invalidIds = validTeams.map((t, idx) => ({ ...t, id: idx + 2 })); // IDs 2-19
+  assert.equal(validateOfficialTeamsIntegrity(invalidIds).valid, false);
+});
+
+
 

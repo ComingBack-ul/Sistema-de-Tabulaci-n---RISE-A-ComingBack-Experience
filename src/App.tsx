@@ -44,7 +44,7 @@ import { ParticipantDashboard } from './components/ParticipantDashboard';
 import { Activity, Users, UserCheck, Settings, ShieldCheck, FileSpreadsheet } from 'lucide-react';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => getStoredUser());
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [isInitializing, setIsInitializing] = useState(true);
   
@@ -61,11 +61,13 @@ export default function App() {
               if (me.team) {
                 setTeams([me.team]);
               }
+              setCurrentUser(null);
               setIsInitializing(false);
               return;
             } else if (me.user) {
               setCurrentUser(me.user);
-              storeUser(me.user);
+              setIsParticipantMode(false);
+              setParticipantTeamId(null);
               const data = await api.get('/api/teams');
               setTeams(data as any);
               setIsInitializing(false);
@@ -74,11 +76,16 @@ export default function App() {
           }
         } catch {}
 
-        if (currentUser?.role === 'admin' || currentUser?.role === 'judge') {
-          const data = await api.get('/api/teams');
-          setTeams(data as any);
-        } else {
+        // Fallback: If unauthenticated on server, ensure user is logged out
+        setCurrentUser(null);
+        setIsParticipantMode(false);
+        setParticipantTeamId(null);
+        clearStoredUser();
+        
+        try {
           setTeams(loadTeamsFromStorage());
+        } catch {
+          setTeams(getInitialTeams());
         }
       } catch {
         try {
@@ -458,6 +465,14 @@ export default function App() {
     ).length;
   }, [teams]);
 
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#991B1B] border-t-transparent" />
+      </div>
+    );
+  }
+
   // Participant Mode Rendering
   if (isParticipantMode) {
     if (participantTeamId === null) {
@@ -480,11 +495,6 @@ export default function App() {
   // If not logged in, render Login Screen
   if (!currentUser) {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} onParticipantLogin={() => setIsParticipantMode(true)} />;
-  }
-
-  
-  if (isInitializing) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-4 border-[#991B1B] border-t-transparent"></div></div>;
   }
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-['Plus_Jakarta_Sans']">

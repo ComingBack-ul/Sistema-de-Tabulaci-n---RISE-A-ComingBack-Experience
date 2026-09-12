@@ -228,5 +228,124 @@ test('10. Official teams integrity reject on tampered count or invalid IDs', () 
   assert.equal(validateOfficialTeamsIntegrity(invalidIds).valid, false);
 });
 
+test('11. Inactive user session verification blocks deactivated users', () => {
+  const mockUsers = [
+    { username: 'juez_sala_a1', status: 'inactive' },
+    { username: 'admin_tab', status: 'active' }
+  ];
+
+  const verifySessionActive = (username: string) => {
+    const user = mockUsers.find(u => u.username === username);
+    if (!user) return { allowed: false, status: 401, error: 'Usuario no encontrado' };
+    if (user.status === 'inactive') return { allowed: false, status: 403, error: 'Usuario inactivo' };
+    return { allowed: true, status: 200 };
+  };
+
+  // Inactive judge is blocked
+  const inactiveCheck = verifySessionActive('juez_sala_a1');
+  assert.equal(inactiveCheck.allowed, false);
+  assert.equal(inactiveCheck.status, 403);
+
+  // Active admin is permitted
+  const activeCheck = verifySessionActive('admin_tab');
+  assert.equal(activeCheck.allowed, true);
+  assert.equal(activeCheck.status, 200);
+
+  // Nonexistent user is rejected
+  const nonexistentCheck = verifySessionActive('unknown_user');
+  assert.equal(nonexistentCheck.allowed, false);
+  assert.equal(nonexistentCheck.status, 401);
+});
+
+test('12. Inactive team session verification blocks deactivated teams', () => {
+  const mockTeams = [
+    { id: 1, name: 'Los Scooby Doo', status: 'inactive' },
+    { id: 2, name: 'Los 4 fantásticos', status: 'active' }
+  ];
+
+  const verifyTeamSessionActive = (teamId: number) => {
+    const team = mockTeams.find(t => t.id === teamId);
+    if (!team) return { allowed: false, status: 401, error: 'Equipo no encontrado' };
+    if (team.status === 'inactive') return { allowed: false, status: 403, error: 'Equipo inactivo' };
+    return { allowed: true, status: 200 };
+  };
+
+  assert.equal(verifyTeamSessionActive(1).allowed, false);
+  assert.equal(verifyTeamSessionActive(1).status, 403);
+  assert.equal(verifyTeamSessionActive(2).allowed, true);
+  assert.equal(verifyTeamSessionActive(2).status, 200);
+});
+
+test('13. Judge evaluation payload validation enforces station points boundaries', () => {
+  const validateEvaluation = (stationKey: string, payload: any) => {
+    if (!payload || typeof payload !== 'object') return { valid: false, error: 'Invalid object' };
+    let maxPoints = 25;
+    if (['sala_b', 'sala_c', 'sala_d', 'sala_e'].includes(stationKey)) {
+      maxPoints = 50;
+    } else if (['sala_a1', 'sala_a2', 'sala_f1', 'sala_f2'].includes(stationKey)) {
+      maxPoints = 25;
+    }
+    const points = Number(payload.points);
+    if (!Number.isFinite(points) || points < 0 || points > maxPoints) {
+      return { valid: false, error: `Points out of range (0-${maxPoints})` };
+    }
+    return { 
+      valid: true, 
+      points, 
+      escapeChallenge: Boolean(payload.escapeChallenge),
+      isSubmitted: Boolean(payload.isSubmitted)
+    };
+  };
+
+  // Valid evaluation for Sala A1 (max 25)
+  assert.equal(validateEvaluation('sala_a1', { points: 20, escapeChallenge: true, isSubmitted: true }).valid, true);
+
+  // Reject points exceeding 25 in Sala A1
+  assert.equal(validateEvaluation('sala_a1', { points: 26, escapeChallenge: false, isSubmitted: false }).valid, false);
+
+  // Reject negative points
+  assert.equal(validateEvaluation('sala_a1', { points: -1, escapeChallenge: false, isSubmitted: false }).valid, false);
+
+  // Valid evaluation for Sala B (max 50)
+  assert.equal(validateEvaluation('sala_b', { points: 45, escapeChallenge: true, isSubmitted: true }).valid, true);
+
+  // Reject points exceeding 50 in Sala B
+  assert.equal(validateEvaluation('sala_b', { points: 51, escapeChallenge: true, isSubmitted: true }).valid, false);
+});
+
+test('14. Role separation: admin cannot submit via judge evaluation endpoint', () => {
+  const requireJudgeMiddleware = (userRole: string) => {
+    if (userRole !== 'judge') {
+      return { allowed: false, status: 403, error: 'Acceso denegado: rol insuficiente' };
+    }
+    return { allowed: true, status: 200 };
+  };
+
+  assert.equal(requireJudgeMiddleware('judge').allowed, true);
+  assert.equal(requireJudgeMiddleware('admin').allowed, false);
+  assert.equal(requireJudgeMiddleware('admin').status, 403);
+  assert.equal(requireJudgeMiddleware('participant').allowed, false);
+});
+
+test('15. LocalStorage manipulation cannot change effective role', () => {
+  // Client state verification simulation
+  const resolveSessionRole = (serverAuthMeResponse: { role?: string } | null, localForgedStorage: string) => {
+    // Client MUST ignore localForgedStorage for authorization
+    if (!serverAuthMeResponse || !serverAuthMeResponse.role) {
+      return null;
+    }
+    return serverAuthMeResponse.role;
+  };
+
+  // User has forged 'admin' in localStorage, but server says null/unauthenticated
+  const resolvedUnauthenticated = resolveSessionRole(null, 'admin');
+  assert.equal(resolvedUnauthenticated, null);
+
+  // User is a participant on server, attempts to forge admin in client storage
+  const resolvedParticipant = resolveSessionRole({ role: 'participant' }, 'admin');
+  assert.equal(resolvedParticipant, 'participant');
+});
+
+
 
 

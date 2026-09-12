@@ -6,7 +6,19 @@ import jwt from 'jsonwebtoken';
 import cookieParser from 'cookie-parser';
 import bcrypt from 'bcryptjs';
 import { OFFICIAL_TEAMS_DATA, buildOfficialTeams, validateOfficialTeamsIntegrity } from './src/data/officialTeams';
-import { ServerUser, Team, JwtAuthPayload, Role, UserStatus } from './src/types';
+import { 
+  ServerUser, 
+  ServerTeam, 
+  ParticipantSession, 
+  EventState, 
+  RotationAssignment, 
+  TeamAssignment, 
+  JwtAuthPayload, 
+  Role, 
+  UserStatus,
+  StationKey,
+  JudgeEvaluation
+} from './src/types';
 
 const app = express();
 const PORT = 3000;
@@ -27,7 +39,7 @@ const USERS_FILE = path.join(process.cwd(), 'users.json');
 const TEAMS_FILE = path.join(process.cwd(), 'teams.json');
 
 // Default initial state
-let eventState = {
+let eventState: EventState = {
   currentRotation: 'rotation_1',
   officialPool: {
     phrases: [
@@ -89,7 +101,7 @@ let eventState = {
 };
 
 let usersState: ServerUser[] = [];
-let teamsState: Team[] = [];
+let teamsState: ServerTeam[] = [];
 
 // Fallback seed hash for fresh deployments without users.json
 const SEED_BCRYPT_HASH = '$2b$10$jONaDBt6LwZbieGTI3XJvOghJ919grFV1Eq9Xa65mJvAb8anChvmK';
@@ -312,7 +324,24 @@ const authenticateToken = (req: AuthenticatedRequest, res: express.Response, nex
   
   jwt.verify(token, JWT_SECRET, (err: any, decoded: any) => {
     if (err) return res.status(401).json({ error: 'Token inválido o sesión expirada' });
-    req.user = decoded as JwtAuthPayload;
+    const payload = decoded as JwtAuthPayload;
+
+    // Live validation: revoked or inactive users and teams cannot use an existing session
+    if (payload.role === 'participant') {
+      const team = teamsState.find(t => t.id === payload.teamId);
+      if (!team) return res.status(401).json({ error: 'Equipo no encontrado o eliminado.' });
+      if (team.status === 'inactive') {
+        return res.status(403).json({ error: 'El equipo se encuentra inactivo. Acceso revocado.' });
+      }
+    } else {
+      const user = usersState.find(u => u.username.toLowerCase() === (payload.username || '').toLowerCase());
+      if (!user) return res.status(401).json({ error: 'Usuario no encontrado o eliminado.' });
+      if (user.status === 'inactive') {
+        return res.status(403).json({ error: 'Usuario inactivo. Acceso revocado.' });
+      }
+    }
+
+    req.user = payload;
     next();
   });
 };
@@ -529,16 +558,100 @@ app.get('/api/participant/assignment/:rotationId', authenticateToken, requirePar
 // --- JUDGE ENDPOINTS ---
 app.put('/api/judge/evaluation', authenticateToken, requireJudge, (req: AuthenticatedRequest, res) => {
   const { teamId, evaluation } = req.body;
+  
+  if (typeof teamId !== 'number' || !Number.isInteger(teamId) || teamId < 1 || teamId > 18) {
+    return res.status(400).json({ error: 'ID de equipo inválido. Debe ser un número entero entre 1 y 18.' });
+  }
+
   const team = teamsState.find(t => t.id === teamId);
   if (!team) return res.status(404).json({ error: 'Equipo no encontrado' });
-  
-  if (!team.judgeEvaluations) team.judgeEvaluations = {};
-  team.judgeEvaluations[req.user!.username!] = {
-    ...evaluation,
+  if (team.status === 'inactive') return res.status(403).json({ error: 'El equipo se encuentra inactivo.' });
+
+  if (!evaluation || typeof evaluation !== 'object') {
+    return res.status(400).json({ error: 'Cuerpo de evaluación inválido.' });
+  }
+
+  const stationKey = req.user?.stationKey;
+  if (!stationKey) {
+    return res.status(400).json({ error: 'El juez autenticado no tiene una estación asignada.' });
+  }
+
+  let maxPoints = 25;
+  if (['sala_b', 'sala_c', 'sala_d', 'sala_e'].includes(stationKey)) {
+    maxPoints = 50;
+  } else if (['sala_a1', 'sala_a2', 'sala_f1', 'sala_f2'].includes(stationKey)) {
+    maxPoints = 25;
+  }
+
+  const points = Number(evaluation.points);
+  if (!Number.isFinite(points) || points < 0 || points > maxPoints) {
+    return res.status(400).json({ 
+      error: `Puntuación fuera de rango para la estación ${stationKey}. Debe ser un valor numérico entre 0 y ${maxPoints}.` 
+    });
+  }
+
+  const sanitizedEvaluation: JudgeEvaluation = {
     judgeUsername: req.user!.username!,
-    stationKey: req.user!.stationKey,
+    stationKey: stationKey as StationKey,
+    points,
+    escapeChallenge: Boolean(evaluation.escapeChallenge),
+    isSubmitted: Boolean(evaluation.isSubmitted),
+    notes: typeof evaluation.notes === 'string' ? evaluation.notes.trim().slice(0, 500) : undefined,
     timestamp: new Date().toISOString()
   };
+  
+  if (!team.judgeEvaluations) team.judgeEvaluations = {};
+  team.judgeEvaluations[req.user!.username!] = sanitizedEvaluation;
+  team.lastUpdated = new Date().toISOString();
+  saveTeams();
+  res.json({ success: true, team });
+});
+
+// Explicit administrative route for evaluation management/resets
+app.put('/api/admin/evaluation', authenticateToken, requireAdmin, (req: AuthenticatedRequest, res) => {
+  const { teamId, judgeUsername, evaluation } = req.body;
+  if (typeof teamId !== 'number' || teamId < 1 || teamId > 18) {
+    return res.status(400).json({ error: 'ID de equipo inválido' });
+  }
+  const team = teamsState.find(t => t.id === teamId);
+  if (!team) return res.status(404).json({ error: 'Equipo no encontrado' });
+
+  if (!judgeUsername || typeof judgeUsername !== 'string') {
+    return res.status(400).json({ error: 'judgeUsername es requerido para la edición administrativa.' });
+  }
+
+  if (evaluation === null) {
+    // Administrative reset of specific judge evaluation
+    if (team.judgeEvaluations && team.judgeEvaluations[judgeUsername]) {
+      delete team.judgeEvaluations[judgeUsername];
+      team.lastUpdated = new Date().toISOString();
+      saveTeams();
+    }
+    return res.json({ success: true, team });
+  }
+
+  if (!evaluation || typeof evaluation !== 'object') {
+    return res.status(400).json({ error: 'Cuerpo de evaluación inválido.' });
+  }
+
+  const points = Number(evaluation.points);
+  if (!Number.isFinite(points) || points < 0 || points > 50) {
+    return res.status(400).json({ error: 'Puntuación fuera de rango (0 - 50).' });
+  }
+
+  const stationKey = evaluation.stationKey || 'sala_b';
+  const sanitizedEvaluation: JudgeEvaluation = {
+    judgeUsername,
+    stationKey,
+    points,
+    escapeChallenge: Boolean(evaluation.escapeChallenge),
+    isSubmitted: Boolean(evaluation.isSubmitted),
+    notes: typeof evaluation.notes === 'string' ? evaluation.notes.trim().slice(0, 500) : undefined,
+    timestamp: new Date().toISOString()
+  };
+
+  if (!team.judgeEvaluations) team.judgeEvaluations = {};
+  team.judgeEvaluations[judgeUsername] = sanitizedEvaluation;
   team.lastUpdated = new Date().toISOString();
   saveTeams();
   res.json({ success: true, team });

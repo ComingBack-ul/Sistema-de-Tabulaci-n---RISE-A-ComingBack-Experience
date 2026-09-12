@@ -11,9 +11,6 @@ import {
   computeRanksAndBreak
 } from './utils/storage';
 import { 
-  getStoredUser, 
-  storeUser, 
-  clearStoredUser, 
   canEvaluateTeam, 
   canSubmitForStation, 
   isAdminUser,
@@ -80,7 +77,6 @@ export default function App() {
         setCurrentUser(null);
         setIsParticipantMode(false);
         setParticipantTeamId(null);
-        clearStoredUser();
         
         try {
           setTeams(loadTeamsFromStorage());
@@ -118,34 +114,21 @@ export default function App() {
       }
     });
 
-    const handleStorageAuthSync = () => {
-      const validStored = getStoredUser();
-      if (!validStored) {
-        clearStoredUser();
-        setCurrentUser(null);
-      } else {
-        setCurrentUser(validStored);
-      }
-    };
-
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    window.addEventListener('storage', handleStorageAuthSync);
 
     return () => {
       unsubscribe();
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('storage', handleStorageAuthSync);
     };
   }, []);
 
   // Authentication Handlers
   const handleLoginSuccess = (user: AuthUser) => {
-    storeUser(user);
     setCurrentUser(user);
     if (user.role === 'admin') {
       setCurrentView('admin');
@@ -158,7 +141,6 @@ export default function App() {
       const { logout } = await import('./utils/auth');
       await logout();
     } catch {}
-    clearStoredUser();
     setCurrentUser(null);
     setParticipantTeamId(null);
     setIsParticipantMode(false);

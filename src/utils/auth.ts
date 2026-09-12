@@ -190,27 +190,9 @@ export function getTotalAssignedTeamsCount(user: AuthUser | null | undefined, te
 }
 
 
-export function getStoredUser(): AuthUser | null {
-  try {
-    const data = localStorage.getItem('coming_back_aniversario_auth_v1');
-    if (!data) return null;
-    return JSON.parse(data);
-  } catch (e) {
-    return null;
-  }
-}
+// LocalStorage is strictly forbidden from driving authentication or authorization.
+// All session state is server-authoritative via /api/auth/me.
 
-export function storeUser(user: AuthUser): void {
-  try {
-    localStorage.setItem('coming_back_aniversario_auth_v1', JSON.stringify(user));
-  } catch (e) {}
-}
-
-export function clearStoredUser(): void {
-  try {
-    localStorage.removeItem('coming_back_aniversario_auth_v1');
-  } catch (e) {}
-}
 
 export function canEvaluateTeam(user: AuthUser | null, teamId: number, teams: Team[]): boolean {
   if (!user || user.role !== 'judge') return false;

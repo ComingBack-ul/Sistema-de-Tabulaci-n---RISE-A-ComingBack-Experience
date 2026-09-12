@@ -330,8 +330,24 @@ export interface RotationAssignment {
   teamAssignments: Record<number, ParticipantContent>;
 }
 
+export type ServerTeam = Team;
+
+export interface ParticipantSession {
+  authenticated: boolean;
+  role: 'participant';
+  teamId: number;
+  team: {
+    id: number;
+    name: string;
+    participants: Participant[];
+  };
+}
+
+export type TeamAssignment = ParticipantContent;
+
 export interface EventState {
   currentRotation: RotationId;
   officialPool: OfficialContentPool;
   assignments: Record<RotationId, RotationAssignment>;
 }
+

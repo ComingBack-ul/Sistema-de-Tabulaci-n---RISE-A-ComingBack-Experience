@@ -1,7 +1,8 @@
 import React, { useMemo, useEffect, useState } from 'react';
-import { LogOut, AlertCircle, Compass, FileText, Globe, Key, MapPin, Search } from 'lucide-react';
+import { LogOut, AlertCircle, Compass, FileText, Globe, Key, MapPin, Search, Users } from 'lucide-react';
 import { Team, RotationId } from '../types';
 import { getCurrentRotationAsync, getSafeParticipantAssignmentAsync } from '../services/participantContentService';
+import { buildOfficialTeams } from '../data/officialTeams';
 
 interface Props {
   teamId: number;
@@ -10,7 +11,12 @@ interface Props {
 }
 
 export const ParticipantDashboard: React.FC<Props> = ({ teamId, teams, onLogout }) => {
-  const team = useMemo(() => teams.find(t => t.id === teamId), [teams, teamId]);
+  const team = useMemo(() => {
+    const found = teams.find(t => t.id === teamId);
+    if (found) return found;
+    const official = buildOfficialTeams().find(t => t.id === teamId);
+    return official || null;
+  }, [teams, teamId]);
   
   const [loading, setLoading] = useState(true);
   const [currentRotation, setCurrentRotation] = useState<RotationId>('rotation_1');
@@ -66,11 +72,11 @@ export const ParticipantDashboard: React.FC<Props> = ({ teamId, teams, onLogout 
       <header className="bg-[#991B1B] text-white p-4 shadow-md sticky top-0 z-10 flex items-center justify-between">
         <div className="flex flex-col">
           <span className="text-xs text-red-200 font-bold tracking-wider uppercase">Experiencia Participante</span>
-          <h1 className="text-lg font-black font-['Cabinet_Grotesk'] leading-tight">Equipo #{team.id}</h1>
+          <h1 className="text-xl font-black font-['Cabinet_Grotesk'] leading-tight">{team.name}</h1>
         </div>
         <button 
           onClick={onLogout}
-          className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+          className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors cursor-pointer"
           aria-label="Cerrar sesión"
         >
           <LogOut className="w-5 h-5" />
@@ -117,6 +123,33 @@ export const ParticipantDashboard: React.FC<Props> = ({ teamId, teams, onLogout 
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Team Profile Card */}
+            <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm">
+              <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-3">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Equipo Oficial Registrado</span>
+                  <h2 className="text-lg font-black text-slate-900 font-['Cabinet_Grotesk']">{team.name}</h2>
+                </div>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 text-[#991B1B] rounded-full text-xs font-bold">
+                  <Users className="w-3.5 h-3.5" />
+                  <span>{team.participants?.length || team.members?.length || 0} integrantes</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {(team.participants && team.participants.length > 0
+                  ? team.participants.map((p) => p.name)
+                  : team.members || []
+                ).map((participantName, idx) => (
+                  <div key={idx} className="flex items-center gap-2 text-xs font-medium text-slate-700 bg-slate-50 px-3 py-2 rounded-xl border border-slate-100">
+                    <span className="w-4 h-4 rounded-full bg-[#991B1B]/10 text-[#991B1B] font-bold text-[10px] flex items-center justify-center">
+                      {idx + 1}
+                    </span>
+                    <span className="truncate">{participantName}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Assignment Header */}
             <div className="bg-[#1e293b] rounded-3xl p-6 shadow-lg text-white">
               <div className="flex items-center gap-2 mb-1 text-slate-400">

@@ -243,7 +243,7 @@ export const AuditoriumProjection: React.FC<AuditoriumProjectionProps> = ({ team
                 {currentTime}
               </div>
               <p className="text-xs opacity-75 mt-2">
-                50 Equipos &bull; 150 Salas Evaluadas &bull; 4 Pases a Semifinales
+                {teams.length} Equipos &bull; {teams.length * 3} Salas Evaluadas &bull; 4 Pases a Semifinales
               </p>
             </div>
 

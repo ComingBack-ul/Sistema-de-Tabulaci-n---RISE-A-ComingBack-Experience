@@ -52,12 +52,40 @@ export default function App() {
     async function init() {
       try {
         const { api } = await import('./services/apiClient');
+        try {
+          const me = await api.get<any>('/api/auth/me');
+          if (me && me.authenticated) {
+            if (me.role === 'participant') {
+              setIsParticipantMode(true);
+              setParticipantTeamId(me.teamId || me.team?.id);
+              if (me.team) {
+                setTeams([me.team]);
+              }
+              setIsInitializing(false);
+              return;
+            } else if (me.user) {
+              setCurrentUser(me.user);
+              storeUser(me.user);
+              const data = await api.get('/api/teams');
+              setTeams(data as any);
+              setIsInitializing(false);
+              return;
+            }
+          }
+        } catch {}
+
         if (currentUser?.role === 'admin' || currentUser?.role === 'judge') {
           const data = await api.get('/api/teams');
           setTeams(data as any);
+        } else {
+          setTeams(loadTeamsFromStorage());
         }
-      } catch (e) {
-        setTeams(loadTeamsFromStorage());
+      } catch {
+        try {
+          setTeams(loadTeamsFromStorage());
+        } catch {
+          setTeams(getInitialTeams());
+        }
       }
       setIsInitializing(false);
     }
@@ -79,7 +107,7 @@ export default function App() {
         setTeams(loadTeamsFromStorage());
         setAppError(null);
       } catch (err: any) {
-        setAppError(err.message || 'Error de sincronización con almacenamiento local.');
+        console.warn('Storage sync error:', err);
       }
     });
 
@@ -118,9 +146,15 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      const { logout } = await import('./utils/auth');
+      await logout();
+    } catch {}
     clearStoredUser();
     setCurrentUser(null);
+    setParticipantTeamId(null);
+    setIsParticipantMode(false);
   };
 
   // Save specific evaluation from Judge Dashboard (with Judge Data Isolation)
@@ -438,10 +472,7 @@ export default function App() {
       <ParticipantDashboard 
         teamId={participantTeamId} 
         teams={teams} 
-        onLogout={() => {
-          setParticipantTeamId(null);
-          setIsParticipantMode(false);
-        }} 
+        onLogout={handleLogout} 
       />
     );
   }
@@ -469,6 +500,7 @@ export default function App() {
         isOnline={isOnline}
         onOpenDataModal={() => setIsDataModalOpen(true)}
         totalEvaluated={totalEvaluatedCount}
+        totalTeams={teams.length}
         currentUser={currentUser}
         onLogout={handleLogout}
       />

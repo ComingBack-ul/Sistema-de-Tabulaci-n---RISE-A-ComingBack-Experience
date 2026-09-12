@@ -237,7 +237,7 @@ export const DataManagementModal: React.FC<DataManagementModalProps> = ({
                       Reiniciar Base de Datos (Zona de Peligro)
                     </h4>
                     <p className="text-xs text-red-800 mt-0.5">
-                      Borra todas las evaluaciones y restablece las notas de los 50 equipos a cero.
+                      Borra todas las evaluaciones y restablece las notas de los 18 equipos oficiales a cero.
                     </p>
 
                     {!showResetConfirm ? (

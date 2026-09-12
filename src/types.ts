@@ -12,9 +12,49 @@ export type StationKey =
 
 export type StationType = 'oratoria' | 'debate' | 'crisis';
 
-export type UserRole = 'judge' | 'admin';
+export type Role = 'participant' | 'judge' | 'admin' | 'operator';
+export type UserRole = Role;
 export type UserStatus = 'active' | 'inactive';
 export type TeamStatus = 'active' | 'inactive';
+
+export interface Participant {
+  id: string;
+  name: string;
+  teamId: number;
+}
+
+export interface User {
+  id: string;
+  username: string;
+  passwordHash?: string;
+  role: Role;
+  active: boolean;
+  name?: string;
+  stationKey?: StationKey;
+  stationName?: string;
+  stationType?: StationType;
+  maxPoints?: number;
+  challengeName?: string;
+  challengeDescription?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Session {
+  userId?: string;
+  username?: string;
+  name?: string;
+  role: Role;
+  teamId?: number;
+  team?: {
+    id: number;
+    name: string;
+    participants?: Participant[];
+  };
+  stationKey?: StationKey;
+  issuedAt?: number;
+  expiresAt?: number;
+}
 
 export interface StationDefinition {
   key: StationKey;
@@ -136,10 +176,11 @@ export interface TeamScores {
 }
 
 export interface Team {
-  id: number; // 1 to 50
+  id: number; // 1 to 18
   name: string;
-  wave: Wave;
+  participants: Participant[];
   members: string[];
+  wave: Wave;
   status?: TeamStatus;
   currentStationKey?: StationKey | null;
   scores: TeamScores;

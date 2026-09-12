@@ -21,6 +21,7 @@ interface NavbarProps {
   isOnline: boolean;
   onOpenDataModal: () => void;
   totalEvaluated: number;
+  totalTeams?: number;
   currentUser: AuthUser | null;
   onLogout: () => void;
 }
@@ -32,6 +33,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectAdminTab,
   onOpenDataModal,
   totalEvaluated,
+  totalTeams = 18,
   currentUser,
   onLogout
 }) => {
@@ -56,7 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Progress badge */}
           <div className="flex items-center gap-1.5 bg-[#7F1D1D]/80 px-2.5 py-0.5 rounded-full border border-red-400/30 text-white shadow-xs">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
-            <span className="font-mono text-[11px] font-bold">{totalEvaluated}/50 Evaluados</span>
+            <span className="font-mono text-[11px] font-bold">{totalEvaluated}/{totalTeams} Evaluados</span>
           </div>
         </div>
       </div>

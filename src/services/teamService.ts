@@ -55,10 +55,10 @@ export function validateCreateTeamPayload(
     return { valid: false, error: 'El ID del equipo debe ser un número entero positivo mayor a cero.' };
   }
 
-  if (dto.id > 50) {
+  if (dto.id > 18) {
     return {
       valid: false,
-      error: 'La arquitectura actual de salas y cuadrantes admite IDs de equipo entre 1 y 50.',
+      error: 'La arquitectura del torneo admite IDs de equipo oficiales entre 1 y 18.',
     };
   }
 
@@ -105,11 +105,14 @@ export function createTeam(
     .map((m) => m.trim())
     .filter((m) => m.length > 0);
 
+  const finalMembers = cleanMembers.length > 0 ? cleanMembers : [`Delegado 1 - Equipo ${dto.id}`];
+
   const newTeam: Team = {
     id: dto.id,
     name: dto.name.trim(),
     wave: dto.wave,
-    members: cleanMembers.length > 0 ? cleanMembers : [`Delegado 1 - Equipo ${dto.id}`],
+    members: finalMembers,
+    participants: finalMembers.map((m, idx) => ({ id: `p_${dto.id}_${idx + 1}`, name: m, teamId: dto.id })),
     status: dto.status || 'active',
     currentStationKey: dto.currentStationKey ?? null,
     scores: {
@@ -171,8 +174,8 @@ export function updateTeam(
   // Check if ID is being changed
   const targetId = dto.id !== undefined ? dto.id : existingTeam.id;
   if (targetId !== existingTeam.id) {
-    if (typeof targetId !== 'number' || !Number.isInteger(targetId) || targetId < 1 || targetId > 50) {
-      return { success: false, error: 'El nuevo ID del equipo debe estar entre 1 y 50.' };
+    if (typeof targetId !== 'number' || !Number.isInteger(targetId) || targetId < 1 || targetId > 18) {
+      return { success: false, error: 'El nuevo ID del equipo debe estar entre 1 y 18.' };
     }
 
     if (hasTeamEvaluationHistory(existingTeam)) {
@@ -206,6 +209,9 @@ export function updateTeam(
     status: dto.status !== undefined ? dto.status : (existingTeam.status || 'active'),
     currentStationKey: dto.currentStationKey !== undefined ? dto.currentStationKey : (existingTeam.currentStationKey ?? null),
     members: cleanMembers.length > 0 ? cleanMembers : existingTeam.members,
+    participants: (dto.members !== undefined || !existingTeam.participants || existingTeam.participants.length === 0)
+      ? (cleanMembers.length > 0 ? cleanMembers : existingTeam.members).map((m, idx) => ({ id: `p_${targetId}_${idx + 1}`, name: m, teamId: targetId }))
+      : existingTeam.participants,
     lastUpdated: new Date().toISOString(),
   };
 

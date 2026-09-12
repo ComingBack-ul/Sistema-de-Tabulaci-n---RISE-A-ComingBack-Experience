@@ -1,4 +1,5 @@
 import { Team, TeamScores, Wave, AuditLogEntry, JudgeEvaluation, StationKey } from '../types';
+import { buildOfficialTeams } from '../data/officialTeams';
 import { 
   validateTeam, 
   validateAuditLogEntry, 
@@ -9,12 +10,14 @@ import {
   InvalidBackupError 
 } from './validation';
 
-const STORAGE_KEY = 'coming_back_aniversario_live_zero_state_v3';
-const AUDIT_LOG_KEY = 'coming_back_aniversario_audit_log_zero_state_v3';
+const STORAGE_KEY = 'coming_back_rise_official_teams_v4';
+const AUDIT_LOG_KEY = 'coming_back_rise_audit_log_v4';
 const BROADCAST_CHANNEL_NAME = 'coming_back_live_tab_sync_channel';
 
-// Clean legacy test storage keys if present
+// Clean legacy test and old 50-team mock storage keys if present
 const LEGACY_STORAGE_KEYS = [
+  'coming_back_aniversario_live_zero_state_v3',
+  'coming_back_aniversario_audit_log_zero_state_v3',
   'coming_back_aniversario_live_official_zero_state',
   'coming_back_aniversario_audit_log_zero_state',
   'coming_back_aniversario_tournament_teams',
@@ -43,39 +46,10 @@ export function isStorageAvailable(): boolean {
 }
 
 /**
- * Genera la lista limpia de 18 equipos en Estado Cero
- * Estructura dinámica lista para recibir la base de datos real o edición desde el panel directivo
+ * Genera la lista limpia de los 18 equipos oficiales con sus participantes
  */
 export function getInitialTeams(): Team[] {
-  const teams: Team[] = [];
-  const officialNames = ["Los Scooby Doo","Las tortugas ninja","Eclipse","Invernalia","Los 4 fantásticos","El cuarto poder","4 cerebros, 0 ideas","Los fénix azules","Los Pilares Del Silencio","Los 4 elementos","El Equipito","NEXO","Scooby-Doo","Club mapache (GARIMAJU)","Los mofios","Los 4 en oferta","Águila americana","Mentes bonitas"];
-  
-  officialNames.forEach((name, idx) => {
-    const i = idx + 1;
-    const wave: Wave = i <= 9 ? 'morning' : 'afternoon';
-    teams.push({
-      id: i,
-      name: name,
-      wave,
-      members: [], // Sin integrantes ficticios, listos para ingresar lista definitiva
-      status: 'active',
-      currentStationKey: null,
-      scores: {
-        salaA: { oratoriaPoints: 0, keywordSolved: false, isSubmitted: false },
-        salaBE: { debatePoints: 0, codeDelivered: false, isSubmitted: false },
-        salaF: { crisisPoints: 0, stampAwarded: false, isSubmitted: false },
-      },
-      judgeEvaluations: {},
-      totalScore: 0,
-      locksPassed: 0,
-      allRoomsCompleted: false,
-      rank: i,
-      waveRank: wave === 'morning' ? i : i - 9,
-      isBreakQualified: false,
-      lastUpdated: new Date().toISOString()
-    });
-  });
-  return computeRanksAndBreak(teams);
+  return computeRanksAndBreak(buildOfficialTeams());
 }
 
 /**
@@ -327,7 +301,7 @@ try {
  */
 export function loadTeamsFromStorage(): Team[] {
   if (!isStorageAvailable()) {
-    throw new StorageUnavailableError();
+    return getInitialTeams();
   }
 
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -340,46 +314,74 @@ export function loadTeamsFromStorage(): Team[] {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
-  } catch (err) {
+  } catch {
     // Quarantine corrupted data
     const backupKey = `coming_back_corrupted_backup_${Date.now()}`;
     try {
       localStorage.setItem(backupKey, raw);
     } catch {}
-    throw new StorageCorruptionError(
-      'Error de sintaxis JSON al leer los datos de almacenamiento local. Se ha creado una copia de cuarentena.',
-      raw,
-      backupKey
-    );
+    console.warn('Error de sintaxis JSON al leer almacenamiento local. Autorreparando con los 18 equipos oficiales.');
+    const initial = getInitialTeams();
+    saveTeamsToStorage(initial, false);
+    return initial;
   }
 
-  if (!Array.isArray(parsed) || parsed.length === 0 || parsed.length > 18) {
+  // If parsed data does not contain exactly 18 teams (e.g. legacy 50-team mock datasets or partial lists)
+  if (!Array.isArray(parsed) || parsed.length !== 18) {
     const backupKey = `coming_back_corrupted_backup_${Date.now()}`;
     try {
       localStorage.setItem(backupKey, raw);
     } catch {}
-    throw new StorageCorruptionError(
-      `Estructura de datos incompleta o corrupta (se esperaban entre 1 y 18 equipos, encontrados ${Array.isArray(parsed) ? parsed.length : 'no-array'}). Se ha creado una copia de seguridad.`,
-      raw,
-      backupKey
+    console.warn(
+      `Estructura de datos no coincide con los 18 equipos oficiales (encontrados ${
+        Array.isArray(parsed) ? parsed.length : 'no-array'
+      }). Se ha creado copia de seguridad y autorreparado con los 18 equipos oficiales.`
     );
+
+    // Build the official clean 18 teams
+    const initial = getInitialTeams();
+
+    // Preserve any existing evaluations or scores that belonged to official teams 1-18
+    if (Array.isArray(parsed)) {
+      parsed.forEach((oldTeam: any) => {
+        if (oldTeam && typeof oldTeam.id === 'number' && oldTeam.id >= 1 && oldTeam.id <= 18) {
+          const match = initial.find((t) => t.id === oldTeam.id);
+          if (match) {
+            if (oldTeam.judgeEvaluations && typeof oldTeam.judgeEvaluations === 'object') {
+              match.judgeEvaluations = { ...match.judgeEvaluations, ...oldTeam.judgeEvaluations };
+            }
+            if (oldTeam.scores && typeof oldTeam.scores === 'object') {
+              match.scores = { ...match.scores, ...oldTeam.scores };
+            }
+          }
+        }
+      });
+    }
+
+    const migrated = computeRanksAndBreak(initial);
+    saveTeamsToStorage(migrated, false);
+    return migrated;
   }
 
   const validatedTeams: Team[] = [];
+  let hadInvalid = false;
   for (let i = 0; i < parsed.length; i++) {
     const res = validateTeam(parsed[i]);
     if (!res.valid || !res.data) {
-      const backupKey = `coming_back_corrupted_backup_${Date.now()}`;
-      try {
-        localStorage.setItem(backupKey, raw);
-      } catch {}
-      throw new StorageCorruptionError(
-        `Error de validación en el equipo del índice ${i}: ${res.error}`,
-        raw,
-        backupKey
-      );
+      hadInvalid = true;
+      const officialFallback = buildOfficialTeams()[i] || getInitialTeams()[0];
+      validatedTeams.push(officialFallback);
+    } else {
+      validatedTeams.push(res.data);
     }
-    validatedTeams.push(res.data);
+  }
+
+  if (hadInvalid) {
+    const backupKey = `coming_back_corrupted_backup_${Date.now()}`;
+    try {
+      localStorage.setItem(backupKey, raw);
+    } catch {}
+    saveTeamsToStorage(validatedTeams, false);
   }
 
   return computeRanksAndBreak(validatedTeams);

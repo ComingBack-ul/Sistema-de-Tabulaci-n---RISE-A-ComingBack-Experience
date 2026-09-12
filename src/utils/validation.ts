@@ -470,15 +470,22 @@ export function validateTeam(team: unknown): { valid: boolean; error?: string; d
     }
   }
 
+  const cleanMembers = Array.isArray(t.members) 
+    ? t.members.map((m) => (typeof m === 'string' ? m.trim().slice(0, 100) : '')).filter(Boolean)
+    : [];
+
+  const cleanParticipants = Array.isArray(t.participants) && t.participants.length > 0
+    ? t.participants
+    : cleanMembers.map((m, idx) => ({ id: `p_${t.id}_${idx + 1}`, name: m, teamId: t.id! }));
+
   const cleanTeam: Team = {
     id: t.id,
     name: t.name.trim().slice(0, 100),
     wave: t.wave,
     status: (t.status === 'inactive' ? 'inactive' : 'active') as TeamStatus,
     currentStationKey,
-    members: Array.isArray(t.members) 
-      ? t.members.map((m) => (typeof m === 'string' ? m.trim().slice(0, 100) : '')).filter(Boolean)
-      : [],
+    participants: cleanParticipants,
+    members: cleanMembers,
     scores: cleanScores,
     totalScore: 0, // Will be computed by computeRanksAndBreak
     locksPassed: 0,

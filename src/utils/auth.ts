@@ -16,13 +16,17 @@ export async function authenticate(
   }
 }
 
-export async function authenticateParticipant(teamId: number): Promise<{ success: boolean; role?: string; teamId?: number; error?: string }> {
+export async function authenticateParticipant(
+  teamNameOrId: string | number
+): Promise<{ success: boolean; role?: string; teamId?: number; team?: any; error?: string }> {
   try {
-    const res = await api.post<any>('/api/auth/login', { teamId });
+    const payload = typeof teamNameOrId === 'number' ? { teamId: teamNameOrId } : { teamName: teamNameOrId };
+    const res = await api.post<any>('/api/auth/login', payload);
     if (res.success && res.role === 'participant') {
-      return { success: true, role: 'participant', teamId: res.teamId };
+      const resolvedId = res.team?.id || res.teamId;
+      return { success: true, role: 'participant', teamId: resolvedId, team: res.team };
     }
-    return { success: false, error: 'No autorizado.' };
+    return { success: false, error: res.error || 'No autorizado.' };
   } catch (e: any) {
     return { success: false, error: e.message || 'Error de conexión.' };
   }
@@ -32,7 +36,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   try {
     const user = await api.get<any>('/api/auth/me');
     if (user && user.role !== 'participant') {
-      return user;
+      return user.user || user;
     }
     return null;
   } catch (e) {
@@ -40,11 +44,15 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   }
 }
 
-export async function getCurrentParticipant(): Promise<{ role: string, teamId: number } | null> {
+export async function getCurrentParticipant(): Promise<{ role: string; teamId: number; team?: any } | null> {
   try {
-    const user = await api.get<any>('/api/auth/me');
-    if (user && user.role === 'participant') {
-      return user;
+    const res = await api.get<any>('/api/auth/me');
+    if (res && res.role === 'participant') {
+      return {
+        role: 'participant',
+        teamId: res.team?.id || res.teamId,
+        team: res.team,
+      };
     }
     return null;
   } catch (e) {
